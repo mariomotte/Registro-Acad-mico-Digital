@@ -11,11 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useUser, useAuth, useDoc, useFirestore } from "@/firebase"
+import { useUser, useAuth, useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { signOut } from "firebase/auth"
 import { useRouter } from "next/navigation"
 import { doc } from "firebase/firestore"
-import { useMemo } from "react"
+import Link from "next/link"
 
 export function UserNav() {
   const { user } = useUser()
@@ -23,7 +23,7 @@ export function UserNav() {
   const db = useFirestore()
   const router = useRouter()
 
-  const userDocRef = useMemo(() => user ? doc(db, "users", user.uid) : null, [db, user])
+  const userDocRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user])
   const { data: profile } = useDoc(userDocRef)
 
   const handleSignOut = async () => {
@@ -54,14 +54,13 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem className="cursor-pointer">
-            Perfil de Usuario
+          <DropdownMenuItem asChild>
+            <Link href="/profile" className="cursor-pointer w-full">
+              Perfil de Usuario
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer">
+          <DropdownMenuItem className="cursor-default">
             Rol: <span className="ml-2 font-bold text-primary">{profile?.role || "Cargando..."}</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer">
-            Configuración
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
