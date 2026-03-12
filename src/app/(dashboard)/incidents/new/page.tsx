@@ -14,14 +14,54 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { MOCK_STUDENTS } from "@/lib/mock-data"
-import { ClipboardList, Upload, Camera, Save, X } from "lucide-react"
+import { ClipboardList, Upload, Camera, Save, X, Sparkles, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { refineIncidentReport } from "@/ai/flows/refine-incident-report"
 
 export default function NewIncidentPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [isRefining, setIsRefining] = useState(false)
+  const [description, setDescription] = useState("")
+  const [selectedStudentId, setSelectedStudentId] = useState("")
+
+  const handleRefineDescription = async () => {
+    if (!description.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Descripción vacía",
+        description: "Por favor escribe algo primero para que la IA pueda refinarlo.",
+      })
+      return
+    }
+
+    setIsRefining(true)
+    try {
+      const student = MOCK_STUDENTS.find(s => s.id === selectedStudentId)
+      const studentName = student ? `${student.nombre} ${student.apellido}` : ""
+      
+      const result = await refineIncidentReport({
+        roughDescription: description,
+        studentName
+      })
+      
+      setDescription(result.refinedText)
+      toast({
+        title: "Reporte refinado",
+        description: "La IA ha mejorado la redacción de tu reporte.",
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error de IA",
+        description: "No se pudo refinar el reporte en este momento.",
+      })
+    } finally {
+      setIsRefining(false)
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,7 +83,7 @@ export default function NewIncidentPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline">Nueva Incidencia</h2>
-          <p className="text-muted-foreground">Registra un nuevo suceso o observación para un alumno.</p>
+          <p className="text-muted-foreground">Registra un nuevo suceso u observación para un alumno.</p>
         </div>
       </div>
 
@@ -60,7 +100,7 @@ export default function NewIncidentPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="student">Seleccionar Alumno</Label>
-                <Select required>
+                <Select required onValueChange={setSelectedStudentId} value={selectedStudentId}>
                   <SelectTrigger id="student">
                     <SelectValue placeholder="Buscar alumno..." />
                   </SelectTrigger>
@@ -109,12 +149,31 @@ export default function NewIncidentPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Descripción Detallada</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="description">Descripción Detallada</Label>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-accent hover:text-accent hover:bg-accent/10 h-8 gap-1.5"
+                  onClick={handleRefineDescription}
+                  disabled={isRefining || !description.trim()}
+                >
+                  {isRefining ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {isRefining ? "Refinando..." : "Refinar con IA"}
+                </Button>
+              </div>
               <Textarea 
                 id="description" 
-                placeholder="Describa lo ocurrido con la mayor claridad posible..." 
-                className="min-h-[120px]"
+                placeholder="Escribe lo ocurrido. Luego usa la IA para profesionalizar el texto..." 
+                className="min-h-[140px]"
                 required
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
             </div>
 
