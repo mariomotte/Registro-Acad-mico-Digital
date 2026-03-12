@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'EduTrack Central | Sistema de Seguimiento Estudiantil',
+  title: 'EduControl.A.G.G | Sistema de Seguimiento Estudiantil',
   description: 'Gestión moderna de incidencias y seguimiento escolar para instituciones educativas.',
 };
 

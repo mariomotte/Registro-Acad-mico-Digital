@@ -19,7 +19,7 @@ export default function DashboardLayout({
           <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white/80 px-6 backdrop-blur-md">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
-              <h1 className="text-xl font-bold font-headline text-slate-800">Sistema Escolar</h1>
+              <h1 className="text-xl font-bold font-headline text-slate-800">EduControl.A.G.G</h1>
             </div>
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" className="relative text-slate-500">

@@ -8,9 +8,7 @@ import {
   Users, 
   ClipboardList, 
   Bell, 
-  Settings, 
   LogOut,
-  ShieldAlert,
   GraduationCap
 } from "lucide-react"
 
@@ -46,8 +44,8 @@ export function AppSidebar() {
           </div>
           {state === "expanded" && (
             <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight text-white">EduTrack</span>
-              <span className="text-xs font-medium text-sidebar-foreground/60">Central</span>
+              <span className="text-lg font-bold tracking-tight text-white leading-tight">EduControl</span>
+              <span className="text-xs font-medium text-sidebar-foreground/60">.A.G.G</span>
             </div>
           )}
         </div>
@@ -58,7 +56,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.path}>
               <SidebarMenuButton 
                 asChild 
-                isActive={pathname === item.path}
+                isActive={pathname === item.path || (item.path === "/" && pathname === "/incidents")}
                 tooltip={item.name}
                 className="hover:bg-sidebar-accent transition-colors duration-200 py-6"
               >
