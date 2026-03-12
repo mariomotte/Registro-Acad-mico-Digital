@@ -1,0 +1,211 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user profile within the educational tracking system, associating an authenticated user with their role and personal information.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address, used for authentication and communication.",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user within the system (e.g., Director, Docente, Auxiliar, Administrador)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "role",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores individual user profiles including personal information and their assigned role for display purposes. This collection supports path-based ownership for a user's own data (`userId == request.auth.uid`). While the `role` field exists here for client-side display, primary authorization rules for roles leverage dedicated collections for 'existence over content' for improved Authorization Independence and DBAC.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user, typically matching Firebase Authentication's UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{adminId}",
+        "definition": {
+          "entityName": "AdminRole",
+          "schema": {
+            "$ref": "#/backend/entities/AdminRole"
+          },
+          "description": "Defines users with the 'Administrador' role. Authorization is determined by the *existence* of a document with `adminId` matching `request.auth.uid`, ensuring robust and simple role checks (DBAC). This collection is crucial for Authorization Independence as it avoids `get()` calls on `users` documents for role validation.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The unique ID of the user assigned the 'Administrador' role."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_director/{directorId}",
+        "definition": {
+          "entityName": "DirectorRole",
+          "schema": {
+            "$ref": "#/backend/entities/DirectorRole"
+          },
+          "description": "Defines users with the 'Director' role using 'existence over content' for authorization. Ensures clear and independent role-based access for directors (DBAC).",
+          "params": [
+            {
+              "name": "directorId",
+              "description": "The unique ID of the user assigned the 'Director' role."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_docente/{docenteId}",
+        "definition": {
+          "entityName": "DocenteRole",
+          "schema": {
+            "$ref": "#/backend/entities/DocenteRole"
+          },
+          "description": "Defines users with the 'Docente' role using 'existence over content' for authorization. Simplifies rule-based access for teachers (DBAC).",
+          "params": [
+            {
+              "name": "docenteId",
+              "description": "The unique ID of the user assigned the 'Docente' role."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_auxiliar/{auxiliarId}",
+        "definition": {
+          "entityName": "AuxiliarRole",
+          "schema": {
+            "$ref": "#/backend/entities/AuxiliarRole"
+          },
+          "description": "Defines users with the 'Auxiliar' role using 'existence over content' for authorization. Provides clear access control for assistants (DBAC).",
+          "params": [
+            {
+              "name": "auxiliarId",
+              "description": "The unique ID of the user assigned the 'Auxiliar' role."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/students/{studentId}",
+        "definition": {
+          "entityName": "Student",
+          "schema": {
+            "$ref": "#/backend/entities/Student"
+          },
+          "description": "Centralized collection for all student profiles. All documents in this collection share the same security posture: writable by Docentes, Auxiliares, Directors, and Administrators; readable by all authorized roles. This supports QAPs by allowing secure list operations. Includes denormalized 'createdByUserId' and 'createdByUserRole' for auditing and potential future granular access needs, supporting Authorization Independence.",
+          "params": [
+            {
+              "name": "studentId",
+              "description": "The unique ID of the student."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/incidences/{incidenceId}",
+        "definition": {
+          "entityName": "Incidence",
+          "schema": {
+            "$ref": "#/backend/entities/Incidence"
+          },
+          "description": "Stores details of incidents reported for students. Access is role-based, shared across authorized users. To achieve Authorization Independence and support QAPs, each document includes denormalized fields: 'studentId' (for direct student lookup), 'studentName', 'studentGrade' (for display/filtering), 'registradorUserId' (the ID of the user who registered it), and 'registradorUserRole' (the role of the user who registered it). This prevents security rules from needing to `get()` parent student data or user role data from the `users` collection.",
+          "params": [
+            {
+              "name": "incidenceId",
+              "description": "The unique ID of the incident report."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/incidences/{incidenceId}/evidences/{evidenceId}",
+        "definition": {
+          "entityName": "Evidence",
+          "schema": {
+            "$ref": "#/backend/entities/Evidence"
+          },
+          "description": "Subcollection storing metadata for evidence files linked to a specific incidence. CRITICAL for Authorization Independence: each 'evidence' document denormalizes key authorization context from its parent 'incidence' document, including 'incidenceId', 'studentId', 'registradorUserId', and 'registradorUserRole'. This allows security rules to evaluate access for each evidence document without making `get()` calls to the parent 'incidence' document, enabling atomic operations and simplifying rules. Supports QAPs for listing evidences under an incidence.",
+          "params": [
+            {
+              "name": "incidenceId",
+              "description": "The unique ID of the parent incident report."
+            },
+            {
+              "name": "evidenceId",
+              "description": "The unique ID of the evidence document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/alerts/{alertId}",
+        "definition": {
+          "entityName": "Alert",
+          "schema": {
+            "$ref": "#/backend/entities/Alert"
+          },
+          "description": "Stores automated alerts generated by Cloud Functions for students with recurring incidents. Readable by Directors and Administrators. Each alert document includes denormalized 'studentId' and 'studentName' to ensure Authorization Independence, allowing rules and client applications to access relevant student context without additional `get()` calls. This collection maintains a homogeneous security posture, enabling QAPs for secure list operations.",
+          "params": [
+            {
+              "name": "alertId",
+              "description": "The unique ID of the alert."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure prioritizes Authorization Independence, DBAC (Database-Backed Access Control) via 'existence over content', and Structural Segregation to ensure clarity, debuggability, and scalability. Each collection's design explicitly addresses how security rules can operate efficiently without relying on `get()` calls to parent documents, thus enabling atomic operations and robust QAPs (Query As Permissions).\n\n1.  **Authorization Independence (Denormalization Strategy):**\n    *   **Role-Based Access:** Instead of relying on a `role` field within the `/users/{userId}` document for primary authorization checks, dedicated collections like `/roles_admin/{adminId}`, `/roles_director/{directorId}`, `/roles_docente/{docenteId}`, and `/roles_auxiliar/{auxiliarId}` are used. A user's role is determined by the *existence* of a document in the respective role collection matching their `request.auth.uid`. This eliminates `get()` calls to the user's profile during critical authorization checks, making rules extremely fast, atomic, and robust against profile data tampering. The `role` field in `/users/{userId}` is maintained for UI display and client-side logic.\n    *   **Incident and Evidence Context:** For `/incidences/{incidenceId}`, critical fields like `studentId`, `studentName`, `studentGrade`, `registradorUserId`, and `registradorUserRole` are denormalized directly into each incidence document. This ensures that security rules or client-side logic can verify access or display context without needing to `get()` the associated `/students/{studentId}` or `/users/{registradorUserId}` documents.\n    *   **Evidence Subcollection:** The `/incidences/{incidenceId}/evidences/{evidenceId}` subcollection is a prime example of Authorization Independence. Each `evidence` document **MUST** denormalize key authorization attributes from its parent `incidence` (e.g., `incidenceId`, `studentId`, `registradorUserId`, `registradorUserRole`). This allows security rules to evaluate access to an evidence document *solely* based on its own fields and the `request.auth.uid`, without performing a `get()` call to the parent `incidence` document. This is critical for transactional integrity and rule performance.\n    *   **Alerts Context:** For `/alerts/{alertId}`, `studentId` and `studentName` are denormalized. This allows directors and administrators to view alerts and their associated student context directly, without needing to `get()` the student's profile.\n\n2.  **QAPs (Query As Permissions) Support:**\n    *   **Structural Segregation:** Collections like `/students`, `/incidences`, and `/alerts` maintain a **homogeneous security posture**. This means all documents within these collections are subject to the same access rules based on the user's role (e.g., all `students` are viewable by all `Docentes`, `Auxiliares`, `Directors`, and `Administrators`). This design enables secure `list` operations without requiring server-side filtering (rules are not filters). For instance, a `Director` can query `/incidences` and receive all relevant incidents because the rules enforce that Directors can read all documents in that collection, or documents where their `uid` matches a denormalized field like `registradorUserId` if such a rule were implemented.\n    *   **Path-Based Ownership:** The `/users/{userId}` collection uses path-based ownership, where `userId` must match `request.auth.uid` for writes, naturally supporting QAPs for a user's own profile data.\n    *   **Role Collections:** The role collections (`/roles_admin`, etc.) inherently support QAPs through simple `exists()` checks, which are the most efficient form of authorization validation, avoiding complex filtering.\n\nThis architecture minimizes rule complexity by externalizing authorization context through denormalization and structural consistency, leading to a highly secure, performant, and maintainable Firestore database."
+  }
+}
