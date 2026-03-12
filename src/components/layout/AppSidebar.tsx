@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { 
   LayoutDashboard, 
   Users, 
@@ -23,6 +23,8 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useAuth } from "@/firebase"
+import { signOut } from "firebase/auth"
 
 const menuItems = [
   { name: "Panel de Control", icon: LayoutDashboard, path: "/" },
@@ -34,6 +36,13 @@ const menuItems = [
 export function AppSidebar() {
   const pathname = usePathname()
   const { state } = useSidebar()
+  const auth = useAuth()
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    await signOut(auth)
+    router.push("/login")
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -73,7 +82,10 @@ export function AppSidebar() {
         <SidebarSeparator className="mb-4" />
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton className="py-6 hover:bg-destructive/10 hover:text-destructive">
+            <SidebarMenuButton 
+              className="py-6 hover:bg-destructive/10 hover:text-destructive"
+              onClick={handleSignOut}
+            >
               <LogOut size={20} />
               <span>Cerrar Sesión</span>
             </SidebarMenuButton>
