@@ -61,7 +61,7 @@ export default function LoginPage() {
         })
 
         // Set Role Marker (DBAC pattern)
-        const roleCollection = `roles_${role.toLowerCase()}`
+        const roleCollection = `roles_${role.toLowerCase().replace('ó', 'o')}`
         await setDoc(doc(db, roleCollection, user.uid), {
           uid: user.uid,
           assignedAt: serverTimestamp()
@@ -160,6 +160,7 @@ export default function LoginPage() {
                     <SelectItem value="Director">Director</SelectItem>
                     <SelectItem value="Docente">Docente</SelectItem>
                     <SelectItem value="Auxiliar">Auxiliar</SelectItem>
+                    <SelectItem value="Psicólogo">Psicólogo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -1,4 +1,4 @@
-export type UserRole = 'Director' | 'Docente' | 'Auxiliar' | 'Administrador';
+export type UserRole = 'Director' | 'Docente' | 'Auxiliar' | 'Administrador' | 'Psicólogo';
 
 export interface Usuario {
   id: string;
@@ -16,10 +16,12 @@ export interface Alumno {
   fechaNacimiento: string;
   estado: 'Activo' | 'Inactivo' | 'Suspendido';
   incidentsCount?: number;
+  emotionalState?: string;
 }
 
-export type IncidentType = 'Inasistencia' | 'Problema de comportamiento' | 'Problema de salud' | 'Conflicto entre alumnos' | 'Observación académica';
+export type IncidentType = 'Inasistencia' | 'Tardanza' | 'Problema de comportamiento' | 'Problema de salud' | 'Conflicto entre alumnos' | 'Observación académica';
 export type Severity = 'bajo' | 'medio' | 'alto';
+export type AlertLevel = 'verde' | 'amarillo' | 'rojo';
 
 export interface Incidencia {
   id: string;
@@ -37,8 +39,21 @@ export interface Alerta {
   id: string;
   alumnoId: string;
   alumnoNombre: string;
-  tipo: 'Recurrencia' | 'Gravedad';
+  tipo: 'Recurrencia' | 'Gravedad' | 'Tardanzas' | 'Inasistencias';
+  nivel: AlertLevel;
   mensaje: string;
   fecha: string;
   leido: boolean;
+  accionRequerida?: string;
+}
+
+export interface SesionPsicologica {
+  id: string;
+  alumnoId: string;
+  psicologoId: string;
+  fecha: string;
+  motivo: string;
+  observaciones: string;
+  acuerdos: string;
+  clasificacion: 'Leve' | 'Moderado' | 'Crítico';
 }
