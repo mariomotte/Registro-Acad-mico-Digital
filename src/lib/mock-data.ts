@@ -7,12 +7,55 @@ export const MOCK_STUDENTS: Alumno[] = [
   { id: 'st_4', nombre: 'Ana', apellido: 'Martínez', grado: '3ro', seccion: 'C', fechaNacimiento: '2014-11-30', estado: 'Activo', incidentsCount: 12, emotionalState: 'Triste' },
 ];
 
+export const MOCK_INCIDENTS: Incidencia[] = [
+  {
+    id: 'inc_1',
+    alumnoId: 'st_1',
+    alumnoNombre: 'Juan Pérez',
+    tipo: 'Inasistencia',
+    descripcion: 'El alumno no asistió a clases sin justificación previa.',
+    severidad: 'bajo',
+    fecha: new Date().toISOString(),
+    registradoPor: 'Docente García'
+  },
+  {
+    id: 'inc_2',
+    alumnoId: 'st_4',
+    alumnoNombre: 'Ana Martínez',
+    tipo: 'Problema de comportamiento',
+    descripcion: 'Interrupción constante durante la clase de matemáticas.',
+    severidad: 'medio',
+    fecha: new Date(Date.now() - 86400000).toISOString(),
+    registradoPor: 'Auxiliar Soto'
+  },
+  {
+    id: 'inc_3',
+    alumnoId: 'st_4',
+    alumnoNombre: 'Ana Martínez',
+    tipo: 'Inasistencia',
+    descripcion: 'Tercera inasistencia consecutiva en la semana.',
+    severidad: 'alto',
+    fecha: new Date(Date.now() - 172800000).toISOString(),
+    registradoPor: 'Director Ramos'
+  },
+  {
+    id: 'inc_4',
+    alumnoId: 'st_3',
+    alumnoNombre: 'Carlos Rodríguez',
+    tipo: 'Conflicto entre alumnos',
+    descripcion: 'Discusión fuerte con un compañero en el recreo.',
+    severidad: 'alto',
+    fecha: new Date(Date.now() - 43200000).toISOString(),
+    registradoPor: 'Auxiliar Mendoza'
+  }
+];
+
 export const MOCK_ALERTS: Alerta[] = [
   {
     id: 'alt_1',
     alumnoId: 'st_4',
     alumnoNombre: 'Ana Martínez',
-    tipo: 'Inasisencias',
+    tipo: 'Inasistencias',
     nivel: 'rojo',
     mensaje: 'Ana Martínez tiene más de 3 inasistencias esta semana.',
     fecha: new Date().toISOString(),
