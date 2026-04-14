@@ -109,8 +109,9 @@ service cloud.firestore {
     }
 
     match /alerts/{alertId} {
-      allow get, list: if isAdmin() || isDirector() || isPsicologo();
-      allow create, update, delete: if false; 
+      allow get, list: if isStaff();
+      allow create, update: if isAdmin() || isDirector();
+      allow delete: if isAdmin();
     }
   }
 }
