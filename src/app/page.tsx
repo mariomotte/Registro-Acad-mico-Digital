@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect } from "react"
@@ -12,7 +13,8 @@ export default function Home() {
   useEffect(() => {
     if (!isUserLoading) {
       if (user) {
-        router.push("/incidents")
+        // Redirigir al nuevo módulo de Dashboard, no a incidencias
+        router.push("/dashboard")
       } else {
         router.push("/login")
       }

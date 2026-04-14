@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -40,7 +41,7 @@ export function AppSidebar() {
   const { data: profile } = useDoc(userDocRef)
 
   const menuItems = [
-    { name: "Panel de Control", icon: LayoutDashboard, path: "/" },
+    { name: "Panel de Control", icon: LayoutDashboard, path: "/dashboard" },
     { name: "Alumnos", icon: Users, path: "/students" },
     { name: "Incidencias", icon: ClipboardList, path: "/incidents" },
     { name: "Alertas", icon: Bell, path: "/alerts" },
@@ -78,7 +79,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.path}>
               <SidebarMenuButton 
                 asChild 
-                isActive={pathname === item.path || (item.path === "/" && pathname === "/incidents")}
+                isActive={pathname === item.path}
                 tooltip={item.name}
                 className="hover:bg-sidebar-accent transition-colors duration-200 py-6"
               >
