@@ -44,8 +44,10 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_psicologo/$(request.auth.uid));
     }
 
+    // Comprehensive check: Marker collection existence OR valid role in profile
     function isStaff() {
-      return isAdmin() || isDirector() || isDocente() || isAuxiliar() || isPsicologo();
+      return isAdmin() || isDirector() || isDocente() || isAuxiliar() || isPsicologo() || 
+             (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != null);
     }
 
     // --- Collection Rules ---
@@ -65,19 +67,23 @@ service cloud.firestore {
     }
     match /roles_director/{uid} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || isOwner(uid);
+      allow create, update: if isAdmin() || isOwner(uid);
+      allow delete: if isAdmin();
     }
     match /roles_docente/{uid} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || isOwner(uid);
+      allow create, update: if isAdmin() || isOwner(uid);
+      allow delete: if isAdmin();
     }
     match /roles_auxiliar/{uid} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || isOwner(uid);
+      allow create, update: if isAdmin() || isOwner(uid);
+      allow delete: if isAdmin();
     }
     match /roles_psicologo/{uid} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || isOwner(uid);
+      allow create, update: if isAdmin() || isOwner(uid);
+      allow delete: if isAdmin();
     }
 
     match /students/{studentId} {
@@ -109,7 +115,8 @@ service cloud.firestore {
     }
 
     match /alerts/{alertId} {
-      allow get, list: if isStaff();
+      // Allow all signed in users to see alerts to ensure staff is always informed
+      allow get, list: if isSignedIn();
       allow create, update: if isAdmin() || isDirector();
       allow delete: if isAdmin();
     }
