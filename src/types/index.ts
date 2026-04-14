@@ -2,9 +2,11 @@ export type UserRole = 'Director' | 'Docente' | 'Auxiliar' | 'Administrador' | '
 
 export interface Usuario {
   id: string;
-  nombre: string;
-  correo: string;
-  rol: UserRole;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  createdAt?: any;
 }
 
 export interface Alumno {
@@ -32,6 +34,7 @@ export interface Incidencia {
   severidad: Severity;
   fecha: string;
   registradoPor: string;
+  registradorUserId: string;
   evidenceUrls?: string[];
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,18 +14,31 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { MOCK_STUDENTS } from "@/lib/mock-data"
-import { ClipboardList, Upload, Camera, Save, X, Sparkles, Loader2 } from "lucide-react"
+import { ClipboardList, Upload, Camera, Save, Sparkles, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { refineIncidentReport } from "@/ai/flows/refine-incident-report"
+import { useFirestore, useUser, addDocumentNonBlocking } from "@/firebase"
+import { collection, doc } from "firebase/firestore"
+import { useDoc, useMemoFirebase } from "@/firebase"
+import { Usuario } from "@/types"
 
 export default function NewIncidentPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const db = useFirestore()
+  const { user } = useUser()
+  
+  const userDocRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user])
+  const { data: profile } = useDoc<Usuario>(userDocRef)
+
   const [isLoading, setIsLoading] = useState(false)
   const [isRefining, setIsRefining] = useState(false)
   const [description, setDescription] = useState("")
   const [selectedStudentId, setSelectedStudentId] = useState("")
+  const [type, setType] = useState("")
+  const [severity, setSeverity] = useState("bajo")
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 16))
 
   const handleRefineDescription = async () => {
     if (!description.trim()) {
@@ -63,19 +76,50 @@ export default function NewIncidentPage() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user || !profile) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Debes estar autenticado para registrar incidencias.",
+      })
+      return
+    }
+
     setIsLoading(true)
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
+    const student = MOCK_STUDENTS.find(s => s.id === selectedStudentId)
+    const studentName = student ? `${student.nombre} ${student.apellido}` : "Desconocido"
+
+    const incidentData = {
+      alumnoId: selectedStudentId,
+      alumnoNombre: studentName,
+      tipo: type,
+      descripcion: description,
+      severidad: severity,
+      fecha: new Date(date).toISOString(),
+      registradoPor: `${profile.firstName} ${profile.lastName}`,
+      registradorUserId: user.uid,
+    }
+
+    try {
+      addDocumentNonBlocking(collection(db, "incidences"), incidentData)
+      
       toast({
         title: "Registro exitoso",
-        description: "La incidencia ha sido registrada y notificada a los directivos.",
+        description: "La incidencia ha sido registrada correctamente.",
       })
-      router.push("/")
-    }, 1500)
+      router.push("/incidents")
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error al guardar",
+        description: "No se pudo guardar la incidencia en la base de datos.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -113,16 +157,17 @@ export default function NewIncidentPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Tipo de Incidencia</Label>
-                <Select required>
+                <Select required onValueChange={setType} value={type}>
                   <SelectTrigger id="type">
                     <SelectValue placeholder="Seleccione tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="inasistencia">Inasistencia</SelectItem>
-                    <SelectItem value="comportamiento">Problema de comportamiento</SelectItem>
-                    <SelectItem value="salud">Problema de salud</SelectItem>
-                    <SelectItem value="conflicto">Conflicto entre alumnos</SelectItem>
-                    <SelectItem value="academico">Observación académica</SelectItem>
+                    <SelectItem value="Inasistencia">Inasistencia</SelectItem>
+                    <SelectItem value="Tardanza">Tardanza</SelectItem>
+                    <SelectItem value="Problema de comportamiento">Problema de comportamiento</SelectItem>
+                    <SelectItem value="Problema de salud">Problema de salud</SelectItem>
+                    <SelectItem value="Conflicto entre alumnos">Conflicto entre alumnos</SelectItem>
+                    <SelectItem value="Observación académica">Observación académica</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -131,7 +176,7 @@ export default function NewIncidentPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="severity">Nivel de Gravedad</Label>
-                <Select required defaultValue="bajo">
+                <Select required onValueChange={setSeverity} value={severity}>
                   <SelectTrigger id="severity">
                     <SelectValue />
                   </SelectTrigger>
@@ -144,7 +189,13 @@ export default function NewIncidentPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="date">Fecha del Suceso</Label>
-                <Input id="date" type="datetime-local" required defaultValue={new Date().toISOString().slice(0, 16)} />
+                <Input 
+                  id="date" 
+                  type="datetime-local" 
+                  required 
+                  value={date} 
+                  onChange={(e) => setDate(e.target.value)}
+                />
               </div>
             </div>
 
@@ -196,12 +247,13 @@ export default function NewIncidentPage() {
             <Button variant="outline" type="button" onClick={() => router.back()}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-primary" disabled={isLoading}>
-              {isLoading ? "Registrando..." : (
-                <>
-                  <Save className="mr-2 h-4 w-4" /> Guardar Reporte
-                </>
+            <Button type="submit" className="bg-primary" disabled={isLoading || !profile}>
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
               )}
+              {isLoading ? "Registrando..." : "Guardar Reporte"}
             </Button>
           </CardFooter>
         </Card>

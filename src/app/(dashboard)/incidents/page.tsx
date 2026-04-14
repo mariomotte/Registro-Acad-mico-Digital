@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -18,12 +17,15 @@ import {
   Plus, 
   Filter, 
   Download,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Loader2
 } from "lucide-react"
-import { MOCK_INCIDENTS } from "@/lib/mock-data"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, query, orderBy } from "firebase/firestore"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { Incidencia } from "@/types"
 
 const severityColors = {
   bajo: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -34,14 +36,21 @@ const severityColors = {
 export default function IncidentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isMounted, setIsMounted] = useState(false)
+  const db = useFirestore()
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  const filteredIncidents = MOCK_INCIDENTS.filter(incident => 
-    incident.alumnoNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    incident.tipo.toLowerCase().includes(searchTerm.toLowerCase())
+  const incidentsQuery = useMemoFirebase(() => {
+    return query(collection(db, "incidences"), orderBy("fecha", "desc"))
+  }, [db])
+
+  const { data: incidences, isLoading } = useCollection<Incidencia>(incidentsQuery)
+
+  const filteredIncidents = (incidences || []).filter(incident => 
+    incident.alumnoNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    incident.tipo?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -84,54 +93,63 @@ export default function IncidentsPage() {
       </div>
 
       <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-slate-50/50">
-              <TableHead>Fecha</TableHead>
-              <TableHead>Alumno</TableHead>
-              <TableHead>Tipo de Incidencia</TableHead>
-              <TableHead>Severidad</TableHead>
-              <TableHead>Registrado por</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredIncidents.length > 0 ? (
-              filteredIncidents.map((incident) => (
-                <TableRow key={incident.id} className="hover:bg-slate-50/50 transition-colors">
-                  <TableCell className="text-xs font-medium text-slate-500">
-                    {isMounted ? format(new Date(incident.fecha), "dd MMM, yyyy HH:mm", { locale: es }) : "..."}
-                  </TableCell>
-                  <TableCell className="font-semibold text-primary">
-                    <Link href={`/students/${incident.alumnoId}`} className="hover:underline">
-                      {incident.alumnoNombre}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-slate-600">{incident.tipo}</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={severityColors[incident.severidad]}>
-                      {incident.severidad.toUpperCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-slate-500">
-                    {incident.registradoPor}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">Ver Detalles</Button>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Cargando incidencias...</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/50">
+                <TableHead>Fecha</TableHead>
+                <TableHead>Alumno</TableHead>
+                <TableHead>Tipo de Incidencia</TableHead>
+                <TableHead>Severidad</TableHead>
+                <TableHead>Registrado por</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredIncidents.length > 0 ? (
+                filteredIncidents.map((incident) => (
+                  <TableRow key={incident.id} className="hover:bg-slate-50/50 transition-colors">
+                    <TableCell className="text-xs font-medium text-slate-500">
+                      {isMounted && incident.fecha ? format(new Date(incident.fecha), "dd MMM, yyyy HH:mm", { locale: es }) : "..."}
+                    </TableCell>
+                    <TableCell className="font-semibold text-primary">
+                      <Link href={`/students/${incident.alumnoId}`} className="hover:underline">
+                        {incident.alumnoNombre}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-slate-600">{incident.tipo}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={severityColors[incident.severidad as keyof typeof severityColors] || ""}>
+                        {incident.severidad?.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-500">
+                      {incident.registradoPor}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/students/${incident.alumnoId}`}>Ver Detalles</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                    No se encontraron incidencias registradas.
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                  No se encontraron incidencias que coincidan con la búsqueda.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   )
