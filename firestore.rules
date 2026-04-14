@@ -7,19 +7,6 @@ service cloud.firestore {
      * This ruleset implements a Database-Backed Access Control (DBAC) model for an educational tracking system. 
      * It prioritizes "Authorization Independence" by using dedicated role collections to determine permissions 
      * through document existence checks rather than inspecting fields within a user's profile.
-     *
-     * DATA STRUCTURE
-     * - /users/{userId}: Private user profile data.
-     * - /roles_{roleName}/{uid}: Marker documents used for high-performance, atomic role-based authorization.
-     * - /students, /incidences, /alerts: Shared educational data accessed by staff based on their assigned roles.
-     *
-     * KEY SECURITY DECISIONS
-     * - Role Validation: Roles are verified via `exists()` calls to specific role collections (/roles_admin, etc.).
-     * - Denormalization for Authorization: Critical context (like registradorUserId) is stored directly on documents
-     *   to allow rules to make decisions without expensive recursive `get()` calls.
-     * - Structural Segregation: System-generated alerts are separated from user-created incidences to allow 
-     *   distinct permission sets for Directors and Admins.
-     * - Write Protection: All write operations require verified identity and appropriate role or ownership status.
      */
 
     // --- Global Helper Functions ---
@@ -53,19 +40,16 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_auxiliar/$(request.auth.uid));
     }
 
+    function isPsicologo() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_psicologo/$(request.auth.uid));
+    }
+
     function isStaff() {
-      return isAdmin() || isDirector() || isDocente() || isAuxiliar();
+      return isAdmin() || isDirector() || isDocente() || isAuxiliar() || isPsicologo();
     }
 
     // --- Collection Rules ---
 
-    /**
-     * @description Rules for user profile documents. Users manage their own profile; staff can view profiles.
-     * @path /users/{userId}
-     * @allow (get) If the user is the owner or a member of the staff.
-     * @deny (create) If the authenticated UID does not match the document ID.
-     * @principle Enforces path-based ownership and self-creation for user profiles.
-     */
     match /users/{userId} {
       allow get: if isOwner(userId) || isStaff();
       allow list: if isOwner(userId) || isAdmin();
@@ -74,37 +58,28 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    /**
-     * @description Marker collections for Role-Based Access Control. Only Admins can modify roles.
-     * @path /roles_{roleType}/{uid}
-     * @allow (get) Any signed-in user (required for exists() checks in rules).
-     * @deny (write) Any non-admin user attempting to change roles.
-     * @principle Database-Backed Access Control (DBAC) via existence checks.
-     */
+    // Marker collections for Role-Based Access Control
     match /roles_admin/{uid} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
     match /roles_director/{uid} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isOwner(uid);
     }
     match /roles_docente/{uid} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isOwner(uid);
     }
     match /roles_auxiliar/{uid} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isOwner(uid);
+    }
+    match /roles_psicologo/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isOwner(uid);
     }
 
-    /**
-     * @description Centralized student profile data. Accessible by all educational staff.
-     * @path /students/{studentId}
-     * @allow (create) If the user has a recognized staff role.
-     * @deny (delete) If the user is not an administrator.
-     * @principle Shared access for closed collaborators (staff roles).
-     */
     match /students/{studentId} {
       allow get, list: if isStaff();
       allow create: if isStaff();
@@ -112,25 +87,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    /**
-     * @description Incident reports linked to students. Includes denormalized data for audit.
-     * @path /incidences/{incidenceId}
-     * @allow (create) If staff UID matches the registradorUserId field.
-     * @deny (update) If the registradorUserId is being changed (immutability).
-     * @principle Relational integrity via denormalized ownership fields.
-     */
     match /incidences/{incidenceId} {
       allow get, list: if isStaff();
       allow create: if isStaff() && request.resource.data.registradorUserId == request.auth.uid;
       allow update: if isStaff() && resource != null && request.resource.data.registradorUserId == resource.data.registradorUserId;
       allow delete: if isAdmin() || (resource != null && resource.data.registradorUserId == request.auth.uid);
 
-      /**
-       * @description Evidence subcollection. Inherits context from parent but uses denormalization.
-       * @path /incidences/{incidenceId}/evidences/{evidenceId}
-       * @allow (create) If staff UID matches the denormalized registradorUserId.
-       * @principle Authorization Independence: Rules avoid parent get() by using internal fields.
-       */
       match /evidences/{evidenceId} {
         allow get, list: if isStaff();
         allow create: if isStaff() && request.resource.data.registradorUserId == request.auth.uid;
@@ -139,15 +101,15 @@ service cloud.firestore {
       }
     }
 
-    /**
-     * @description Automated alerts for high-frequency incidents. Restricted to leadership.
-     * @path /alerts/{alertId}
-     * @allow (read) Only for Directors and Administrators.
-     * @deny (write) All users; these documents are system-generated.
-     * @principle Structural Segregation for privileged reporting.
-     */
+    match /psychological_sessions/{sessionId} {
+      allow get, list: if isPsicologo() || isAdmin() || isDirector();
+      allow create: if isPsicologo() && request.resource.data.psicologoId == request.auth.uid;
+      allow update: if isPsicologo() && resource != null && resource.data.psicologoId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
     match /alerts/{alertId} {
-      allow get, list: if isAdmin() || isDirector();
+      allow get, list: if isAdmin() || isDirector() || isPsicologo();
       allow create, update, delete: if false; 
     }
   }
