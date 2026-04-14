@@ -9,19 +9,18 @@ import {
   Calendar, 
   User, 
   BookOpen, 
-  MapPin, 
   History,
   FileText,
   Plus
 } from "lucide-react"
 import Link from "next/link"
 import { IncidentAiSummary } from "@/components/incidents/IncidentAiSummary"
-import { RecentIncidents } from "@/components/dashboard/RecentIncidents"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
-export default function StudentDetailPage({ params }: { params: { id: string } }) {
-  const student = MOCK_STUDENTS.find(s => s.id === params.id)
+export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const student = MOCK_STUDENTS.find(s => s.id === id)
   
   if (!student) {
     notFound()

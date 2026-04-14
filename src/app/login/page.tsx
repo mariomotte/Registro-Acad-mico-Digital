@@ -2,13 +2,13 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth, useFirestore } from "@/firebase"
+import { useAuth, useFirestore, setDocumentNonBlocking } from "@/firebase"
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   updateProfile 
 } from "firebase/auth"
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { doc, serverTimestamp } from "firebase/firestore"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -49,8 +49,8 @@ export default function LoginPage() {
           displayName: `${firstName} ${lastName}`
         })
 
-        // Create User Profile
-        await setDoc(doc(db, "users", user.uid), {
+        // Create User Profile (Non-blocking)
+        setDocumentNonBlocking(doc(db, "users", user.uid), {
           id: user.uid,
           email: user.email,
           firstName,
@@ -58,14 +58,14 @@ export default function LoginPage() {
           role,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
-        })
+        }, { merge: true })
 
-        // Set Role Marker (DBAC pattern)
+        // Set Role Marker (Non-blocking, DBAC pattern)
         const roleCollection = `roles_${role.toLowerCase().replace('ó', 'o')}`
-        await setDoc(doc(db, roleCollection, user.uid), {
+        setDocumentNonBlocking(doc(db, roleCollection, user.uid), {
           uid: user.uid,
           assignedAt: serverTimestamp()
-        })
+        }, { merge: true })
 
         toast({
           title: "Registro exitoso",

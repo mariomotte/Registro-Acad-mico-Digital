@@ -12,6 +12,32 @@
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
+    "Student": {
+      "title": "Student",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nombre": { "type": "string" },
+        "apellido": { "type": "string" },
+        "grado": { "type": "string" },
+        "seccion": { "type": "string" },
+        "estado": { "type": "string", "enum": ["Activo", "Inactivo", "Suspendido"] }
+      }
+    },
+    "Incidence": {
+      "title": "Incidence",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "alumnoId": { "type": "string" },
+        "tipo": { "type": "string" },
+        "descripcion": { "type": "string" },
+        "severidad": { "type": "string", "enum": ["bajo", "medio", "alto"] },
+        "fecha": { "type": "string", "format": "date-time" },
+        "registradoPor": { "type": "string" },
+        "registradorUserId": { "type": "string" }
+      }
+    },
     "PsychologicalSession": {
       "title": "PsychologicalSession",
       "type": "object",
@@ -25,6 +51,21 @@
         "acuerdos": { "type": "string" },
         "clasificacion": { "type": "string", "enum": ["Leve", "Moderado", "Crítico"] }
       }
+    },
+    "Alert": {
+      "title": "Alert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "alumnoId": { "type": "string" },
+        "alumnoNombre": { "type": "string" },
+        "tipo": { "type": "string" },
+        "nivel": { "type": "string", "enum": ["verde", "amarillo", "rojo"] },
+        "mensaje": { "type": "string" },
+        "fecha": { "type": "string", "format": "date-time" },
+        "leido": { "type": "boolean" },
+        "accionRequerida": { "type": "string" }
+      }
     }
   },
   "auth": {
@@ -32,8 +73,14 @@
   },
   "firestore": {
     "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/roles_admin/{userId}": { "schema": "object", "description": "Admin role markers" },
+    "/roles_director/{userId}": { "schema": "object", "description": "Director role markers" },
+    "/roles_docente/{userId}": { "schema": "object", "description": "Docente role markers" },
+    "/roles_auxiliar/{userId}": { "schema": "object", "description": "Auxiliar role markers" },
     "/roles_psicologo/{psicologoId}": { "schema": "object", "description": "Role marker for psychologists" },
+    "/students/{studentId}": { "schema": "Student", "description": "Student records" },
+    "/incidences/{incidenceId}": { "schema": "Incidence", "description": "Incident reports" },
     "/psychological_sessions/{sessionId}": { "schema": "PsychologicalSession", "description": "Registry of psychological sessions" },
-    "/alerts/{alertId}": { "schema": "object", "description": "System alerts" }
+    "/alerts/{alertId}": { "schema": "Alert", "description": "System alerts" }
   }
 }
