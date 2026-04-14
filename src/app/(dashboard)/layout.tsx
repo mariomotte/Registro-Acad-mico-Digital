@@ -3,8 +3,7 @@
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { UserNav } from "@/components/layout/UserNav"
-import { Bell } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { NotificationsNav } from "@/components/layout/NotificationsNav"
 
 export default function DashboardLayout({
   children,
@@ -22,10 +21,7 @@ export default function DashboardLayout({
               <h1 className="text-xl font-bold font-headline text-slate-800">EduControl.A.G.G</h1>
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="relative text-slate-500">
-                <Bell size={20} />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent animate-pulse" />
-              </Button>
+              <NotificationsNav />
               <UserNav />
             </div>
           </header>
