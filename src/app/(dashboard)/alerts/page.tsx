@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +14,11 @@ import { cn } from "@/lib/utils"
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState(MOCK_ALERTS)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const markAsRead = (id: string) => {
     setAlerts(alerts.map(a => a.id === id ? { ...a, leido: true } : a))
@@ -82,7 +88,7 @@ export default function AlertsPage() {
                       </div>
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock size={12} />
-                        {format(new Date(alert.fecha), "p", { locale: es })}
+                        {isMounted ? format(new Date(alert.fecha), "p", { locale: es }) : "..."}
                       </span>
                     </div>
                     <p className="text-sm text-slate-600 font-medium">{alert.tipo}: {alert.mensaje}</p>

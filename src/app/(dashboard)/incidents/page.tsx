@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { 
   Table, 
   TableBody, 
@@ -33,6 +33,11 @@ const severityColors = {
 
 export default function IncidentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const filteredIncidents = MOCK_INCIDENTS.filter(incident => 
     incident.alumnoNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -95,7 +100,7 @@ export default function IncidentsPage() {
               filteredIncidents.map((incident) => (
                 <TableRow key={incident.id} className="hover:bg-slate-50/50 transition-colors">
                   <TableCell className="text-xs font-medium text-slate-500">
-                    {format(new Date(incident.fecha), "dd MMM, yyyy HH:mm", { locale: es })}
+                    {isMounted ? format(new Date(incident.fecha), "dd MMM, yyyy HH:mm", { locale: es }) : "..."}
                   </TableCell>
                   <TableCell className="font-semibold text-primary">
                     <Link href={`/students/${incident.alumnoId}`} className="hover:underline">

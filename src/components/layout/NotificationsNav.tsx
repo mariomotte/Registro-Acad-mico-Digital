@@ -1,5 +1,7 @@
+
 "use client"
 
+import { useState, useEffect } from "react"
 import { Bell, AlertTriangle, CheckCircle2, Info, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,7 +11,7 @@ import {
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useCollection, useMemoFirebase, useFirestore } from "@/firebase"
-import { collection, query, orderBy, limit, where } from "firebase/firestore"
+import { collection, query, orderBy, limit } from "firebase/firestore"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
@@ -18,6 +20,11 @@ import { Alerta } from "@/types"
 
 export function NotificationsNav() {
   const db = useFirestore()
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
   
   const alertsQuery = useMemoFirebase(() => {
     return query(
@@ -85,7 +92,7 @@ export function NotificationsNav() {
                       {alert.mensaje}
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      {format(new Date(alert.fecha), "p", { locale: es })}
+                      {isMounted ? format(new Date(alert.fecha), "p", { locale: es }) : "..."}
                     </p>
                   </div>
                 </Link>
