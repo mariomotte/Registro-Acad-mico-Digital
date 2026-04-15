@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { 
   Table, 
   TableBody, 
@@ -30,9 +30,11 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Search, UserPlus, Filter, X, RotateCcw } from "lucide-react"
-import { MOCK_STUDENTS } from "@/lib/mock-data"
+import { Search, UserPlus, Filter, X, RotateCcw, Loader2 } from "lucide-react"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, query, orderBy } from "firebase/firestore"
 import Link from "next/link"
+import { Alumno } from "@/types"
 
 export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -42,9 +44,13 @@ export default function StudentsPage() {
     estado: "todos"
   })
 
-  // Obtener valores únicos para los selectores de filtros
-  const grados = Array.from(new Set(MOCK_STUDENTS.map(s => s.grado)))
-  const secciones = Array.from(new Set(MOCK_STUDENTS.map(s => s.seccion)))
+  const db = useFirestore()
+  
+  const studentsQuery = useMemoFirebase(() => {
+    return query(collection(db, "students"), orderBy("apellido", "asc"))
+  }, [db])
+
+  const { data: students, isLoading } = useCollection<Alumno>(studentsQuery)
 
   const resetFilters = () => {
     setFilters({
@@ -55,7 +61,7 @@ export default function StudentsPage() {
     setSearchTerm("")
   }
 
-  const filteredStudents = MOCK_STUDENTS.filter((student) => {
+  const filteredStudents = (students || []).filter((student) => {
     const matchesSearch = `${student.nombre} ${student.apellido}`.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesGrado = filters.grado === "todos" || student.grado === filters.grado
     const matchesSeccion = filters.seccion === "todos" || student.seccion === filters.seccion
@@ -63,6 +69,10 @@ export default function StudentsPage() {
 
     return matchesSearch && matchesGrado && matchesSeccion && matchesEstado
   })
+
+  // Obtener valores únicos para los selectores de filtros dinámicamente
+  const grados = Array.from(new Set((students || []).map(s => s.grado))).sort()
+  const secciones = Array.from(new Set((students || []).map(s => s.seccion))).sort()
 
   const hasActiveFilters = searchTerm !== "" || filters.grado !== "todos" || filters.seccion !== "todos" || filters.estado !== "todos"
 
@@ -73,8 +83,10 @@ export default function StudentsPage() {
           <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline">Alumnos</h2>
           <p className="text-muted-foreground">Gestiona la base de datos de estudiantes y sus registros.</p>
         </div>
-        <Button className="bg-primary">
-          <UserPlus className="mr-2 h-4 w-4" /> Registrar Alumno
+        <Button asChild className="bg-primary">
+          <Link href="/students/new">
+            <UserPlus className="mr-2 h-4 w-4" /> Registrar Alumno
+          </Link>
         </Button>
       </div>
 
@@ -174,62 +186,61 @@ export default function StudentsPage() {
       </div>
 
       <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-slate-50/50">
-              <TableHead>Nombre Completo</TableHead>
-              <TableHead>Grado y Sección</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Incidencias</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredStudents.length > 0 ? (
-              filteredStudents.map((student) => (
-                <TableRow key={student.id} className="hover:bg-slate-50/50 transition-colors">
-                  <TableCell className="font-medium">
-                    {student.nombre} {student.apellido}
-                  </TableCell>
-                  <TableCell>
-                    {student.grado} - {student.seccion}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={student.estado === 'Activo' ? 'default' : 'secondary'} className={
-                      student.estado === 'Activo' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 
-                      student.estado === 'Suspendido' ? 'bg-red-100 text-red-700 hover:bg-red-200' :
-                      'bg-slate-100 text-slate-700'
-                    }>
-                      {student.estado}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`font-semibold ${
-                      (student.incidentsCount || 0) > 5 ? 'text-destructive' : 'text-slate-600'
-                    }`}>
-                      {student.incidentsCount} registros
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/students/${student.id}`}>Ver Perfil</Link>
-                    </Button>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Cargando alumnos...</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/50">
+                <TableHead>Nombre Completo</TableHead>
+                <TableHead>Grado y Sección</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredStudents.length > 0 ? (
+                filteredStudents.map((student) => (
+                  <TableRow key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                    <TableCell className="font-medium">
+                      {student.nombre} {student.apellido}
+                    </TableCell>
+                    <TableCell>
+                      {student.grado} - {student.seccion}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={student.estado === 'Activo' ? 'default' : 'secondary'} className={
+                        student.estado === 'Activo' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 
+                        student.estado === 'Suspendido' ? 'bg-red-100 text-red-700 hover:bg-red-200' :
+                        'bg-slate-100 text-slate-700'
+                      }>
+                        {student.estado}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/students/${student.id}`}>Ver Perfil</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      <X className="h-8 w-8 text-slate-200 mb-2" />
+                      <p>No se encontraron alumnos con los criterios seleccionados.</p>
+                      <Button variant="link" onClick={resetFilters} className="text-primary font-bold">Ver todos los alumnos</Button>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                  <div className="flex flex-col items-center justify-center gap-1">
-                    <X className="h-8 w-8 text-slate-200 mb-2" />
-                    <p>No se encontraron alumnos con los criterios seleccionados.</p>
-                    <Button variant="link" onClick={resetFilters} className="text-primary font-bold">Ver todos los alumnos</Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   )
