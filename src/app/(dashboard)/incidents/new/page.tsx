@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,8 +14,15 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { MOCK_STUDENTS } from "@/lib/mock-data"
-import { ClipboardList, Upload, Camera, Save, Sparkles, Loader2 } from "lucide-react"
+import { ClipboardList, Upload, Camera, Save, Sparkles, Loader2, X, AlertTriangle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { refineIncidentReport } from "@/ai/flows/refine-incident-report"
@@ -22,6 +30,7 @@ import { useFirestore, useUser, addDocumentNonBlocking } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { useDoc, useMemoFirebase } from "@/firebase"
 import { Usuario } from "@/types"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 export default function NewIncidentPage() {
   const router = useRouter()
@@ -39,6 +48,47 @@ export default function NewIncidentPage() {
   const [type, setType] = useState("")
   const [severity, setSeverity] = useState("bajo")
   const [date, setDate] = useState(new Date().toISOString().slice(0, 16))
+  
+  // Evidence states
+  const [evidences, setEvidences] = useState<string[]>([])
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null)
+  
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Camera permission and stream handling
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+
+    const getCameraPermission = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Acceso a Cámara Denegado',
+          description: 'Por favor, habilita los permisos de cámara en tu navegador.',
+        });
+      }
+    };
+
+    if (isCameraOpen) {
+      getCameraPermission();
+    }
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isCameraOpen, toast]);
 
   const handleRefineDescription = async () => {
     if (!description.trim()) {
@@ -76,6 +126,51 @@ export default function NewIncidentPage() {
     }
   }
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    Array.from(files).forEach(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "Archivo muy pesado",
+          description: `El archivo ${file.name} supera los 5MB.`,
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setEvidences(prev => [...prev, reader.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement("canvas")
+      canvas.width = videoRef.current.videoWidth
+      canvas.height = videoRef.current.videoHeight
+      const ctx = canvas.getContext("2d")
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0)
+        const dataUri = canvas.toDataURL("image/jpeg")
+        setEvidences(prev => [...prev, dataUri])
+        setIsCameraOpen(false)
+        toast({
+          title: "Foto capturada",
+          description: "La imagen se ha añadido a las evidencias.",
+        })
+      }
+    }
+  }
+
+  const removeEvidence = (index: number) => {
+    setEvidences(prev => prev.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || !profile) {
@@ -101,6 +196,7 @@ export default function NewIncidentPage() {
       fecha: new Date(date).toISOString(),
       registradoPor: `${profile.firstName} ${profile.lastName}`,
       registradorUserId: user.uid,
+      evidenceUrls: evidences, // Storing data URIs as evidence URLs for the MVP
     }
 
     try {
@@ -231,14 +327,44 @@ export default function NewIncidentPage() {
             <div className="space-y-4">
               <Label>Evidencias (Opcional)</Label>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div className="border-2 border-dashed rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors text-muted-foreground hover:text-primary hover:border-primary">
+                {evidences.map((src, index) => (
+                  <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border bg-slate-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt={`Evidencia ${index + 1}`} className="w-full h-full object-cover" />
+                    <button 
+                      type="button"
+                      onClick={() => removeEvidence(index)}
+                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+                
+                <div 
+                  onClick={() => setIsCameraOpen(true)}
+                  className="border-2 border-dashed rounded-lg aspect-square flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors text-muted-foreground hover:text-primary hover:border-primary"
+                >
                   <Camera size={20} />
                   <span className="text-[10px] mt-1 font-semibold uppercase">Capturar</span>
                 </div>
-                <div className="border-2 border-dashed rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors text-muted-foreground hover:text-primary hover:border-primary">
+                
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed rounded-lg aspect-square flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors text-muted-foreground hover:text-primary hover:border-primary"
+                >
                   <Upload size={20} />
                   <span className="text-[10px] mt-1 font-semibold uppercase">Subir Foto</span>
                 </div>
+                
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  multiple 
+                  onChange={handleFileUpload}
+                />
               </div>
               <p className="text-[11px] text-muted-foreground italic">Permitido: JPG, PNG, PDF (Máx. 5MB por archivo)</p>
             </div>
@@ -258,6 +384,40 @@ export default function NewIncidentPage() {
           </CardFooter>
         </Card>
       </form>
+
+      {/* Camera Dialog */}
+      <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Capturar Evidencia</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <video ref={videoRef} className="w-full aspect-video rounded-md bg-black" autoPlay muted playsInline />
+            
+            {hasCameraPermission === false && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Acceso denegado</AlertTitle>
+                <AlertDescription>
+                  No podemos acceder a la cámara. Por favor revisa los permisos del sitio.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <DialogFooter className="sm:justify-between">
+            <Button variant="outline" onClick={() => setIsCameraOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={capturePhoto} 
+              disabled={!hasCameraPermission}
+              className="bg-primary"
+            >
+              <Camera className="mr-2 h-4 w-4" /> Tomar Foto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
