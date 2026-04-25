@@ -6,20 +6,26 @@ import { StatCards } from "@/components/dashboard/StatCards"
 import { RecentIncidents } from "@/components/dashboard/RecentIncidents"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Users, AlertCircle, Calendar, Loader2 } from "lucide-react"
+import { Plus, Users, AlertCircle, Calendar, Loader2, Database, Zap } from "lucide-react"
 import Link from "next/link"
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where, limit } from "firebase/firestore"
-import { Alerta } from "@/types"
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase"
+import { collection, query, where, limit, writeBatch, doc, getDocs, deleteDoc } from "firebase/firestore"
+import { Alerta, Usuario } from "@/types"
+import { useToast } from "@/hooks/use-toast"
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser()
   const db = useFirestore()
+  const { toast } = useToast()
   const [isMounted, setIsMounted] = useState(false)
+  const [isSeeding, setIsSeeding] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  const userDocRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user])
+  const { data: profile } = useDoc<Usuario>(userDocRef)
 
   const alertsQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -27,6 +33,112 @@ export default function DashboardPage() {
   }, [db, user])
 
   const { data: alerts, isLoading: isLoadingAlerts } = useCollection<Alerta>(alertsQuery)
+
+  const runStressTest = async () => {
+    if (!user || !profile) return
+    setIsSeeding(true)
+    
+    try {
+      toast({
+        title: "Iniciando inyección",
+        description: "Generando 500 alumnos y sus incidencias...",
+      })
+
+      const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
+      const SECCIONES = ["A", "B", "C", "D"]
+      const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen"]
+      const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza", "Castillo", "Ramos", "Vargas"]
+
+      let batch = writeBatch(db)
+      let operations = 0
+      let totalStudents = 0
+      let totalIncidents = 0
+      let totalAlerts = 0
+
+      for (let i = 1; i <= 500; i++) {
+        // 1. Crear Alumno
+        const studentRef = doc(collection(db, "students"))
+        const nombre = NOMBRES[Math.floor(Math.random() * NOMBRES.length)]
+        const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
+        const fullStudentName = `${nombre} ${apellido} #${i}`
+        
+        const studentData = {
+          nombre: nombre,
+          apellido: `${apellido} #${i}`,
+          grado: GRADOS[Math.floor(Math.random() * GRADOS.length)],
+          seccion: SECCIONES[Math.floor(Math.random() * SECCIONES.length)],
+          estado: "Activo",
+          fechaNacimiento: "2010-01-01",
+          createdAt: new Date().toISOString()
+        }
+        
+        batch.set(studentRef, studentData)
+        operations++
+        totalStudents++
+
+        // 2. Generar Inasistencias aleatorias (0 a 5)
+        const inasistencias = Math.floor(Math.random() * 6)
+        for (let f = 1; f <= inasistencias; f++) {
+          const incRef = doc(collection(db, "incidences"))
+          const incData = {
+            alumnoId: studentRef.id,
+            alumnoNombre: fullStudentName,
+            tipo: "Inasistencia",
+            descripcion: `Inasistencia automática generada por prueba de estrés #${f}`,
+            severidad: f > 3 ? "alto" : "bajo",
+            fecha: new Date().toISOString(),
+            registradoPor: "Sistema de Estrés",
+            registradorUserId: user.uid
+          }
+          batch.set(incRef, incData)
+          operations++
+          totalIncidents++
+        }
+
+        // 3. Disparar Alerta si tiene muchas inasistencias
+        if (inasistencias >= 4) {
+          const alertRef = doc(collection(db, "alerts"))
+          batch.set(alertRef, {
+            alumnoId: studentRef.id,
+            alumnoNombre: fullStudentName,
+            tipo: "Inasistencias",
+            nivel: "rojo",
+            mensaje: `${fullStudentName} ha superado el límite de 3 inasistencias.`,
+            fecha: new Date().toISOString(),
+            leido: false,
+            accionRequerida: "Citar al apoderado de forma urgente."
+          })
+          operations++
+          totalAlerts++
+        }
+
+        // Firestore permite max 500 ops por batch
+        if (operations >= 400) {
+          await batch.commit()
+          batch = writeBatch(db)
+          operations = 0
+        }
+      }
+
+      if (operations > 0) {
+        await batch.commit()
+      }
+
+      toast({
+        title: "¡Inyección Completada!",
+        description: `Se crearon ${totalStudents} alumnos, ${totalIncidents} incidencias y ${totalAlerts} alertas rojas.`,
+      })
+    } catch (error) {
+      console.error(error)
+      toast({
+        variant: "destructive",
+        title: "Error en la inyección",
+        description: "No se pudieron generar todos los datos.",
+      })
+    } finally {
+      setIsSeeding(false)
+    }
+  }
 
   if (isUserLoading || !isMounted) {
     return (
@@ -36,6 +148,8 @@ export default function DashboardPage() {
     )
   }
 
+  const isAdmin = profile?.role === 'Administrador' || profile?.role === 'Director';
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -44,6 +158,21 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Bienvenido, {user?.displayName || "Usuario"}. Aquí tienes el estado actual del colegio.</p>
         </div>
         <div className="flex gap-2">
+          {isAdmin && (
+            <Button 
+              variant="outline" 
+              className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+              onClick={runStressTest}
+              disabled={isSeeding}
+            >
+              {isSeeding ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Database className="mr-2 h-4 w-4" />
+              )}
+              {isSeeding ? "Inyectando..." : "Inyectar 500 Alumnos (Test)"}
+            </Button>
+          )}
           <Button asChild variant="outline" className="hidden md:flex">
             <Link href="/students">
               <Users className="mr-2 h-4 w-4" /> Ver Alumnos
@@ -102,7 +231,7 @@ export default function DashboardPage() {
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
                     <Link href={`/students/${alert.alumnoId}`}>
-                      <Calendar size={14} />
+                      <Zap size={14} className="text-amber-500" />
                     </Link>
                   </Button>
                 </div>
