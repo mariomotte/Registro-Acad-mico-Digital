@@ -15,7 +15,7 @@ import { collection, query, orderBy, limit } from "firebase/firestore"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
-import { cn } from "@/utils"
+import { cn } from "@/lib/utils"
 import { Alerta } from "@/types"
 
 export function NotificationsNav() {
@@ -67,7 +67,7 @@ export function NotificationsNav() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0 mr-4 shadow-xl border-none" align="end">
+      <PopoverContent className="w-80 p-0 shadow-xl border-none" align="end">
         <div className="flex items-center justify-between p-4 border-b bg-slate-50/50 rounded-t-lg">
           <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
             Notificaciones
