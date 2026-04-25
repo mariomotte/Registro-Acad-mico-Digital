@@ -1,14 +1,40 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD GLOBAL PARA PROTOTIPADO (v2.5)
-    // Se otorga acceso total a cualquier usuario que haya iniciado sesión.
-    // Esto es crítico para la inyección masiva de 500 alumnos y sus reportes.
+    // REGLAS DE SEGURIDAD EXPLICITAS PARA PROTOTIPADO (v3.0)
+    // Se otorga acceso total a cualquier usuario autenticado para facilitar pruebas masivas.
     
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /students/{studentId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /incidences/{incidenceId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /alerts/{alertId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /psychological_sessions/{sessionId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /roles_admin/{userId} { allow read, write: if request.auth != null; }
+    match /roles_director/{userId} { allow read, write: if request.auth != null; }
+    match /roles_docente/{userId} { allow read, write: if request.auth != null; }
+    match /roles_auxiliar/{userId} { allow read, write: if request.auth != null; }
+    match /roles_psicologo/{psicologoId} { allow read, write: if request.auth != null; }
+
+    // Regla de respaldo para cualquier otra colección
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
     
-    // Forzado de despliegue: 2024-05-25 20:45
+    // Forzado de despliegue crítico: 2024-05-25 21:20
   }
 }

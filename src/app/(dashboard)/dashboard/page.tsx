@@ -47,8 +47,8 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva",
-        description: "Generando 500 alumnos con historiales de inasistencias y comportamiento...",
+        title: "Iniciando inyección masiva v3.0",
+        description: "Generando 500 alumnos con historiales complejos de inasistencias y comportamiento...",
       })
 
       const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
@@ -101,7 +101,7 @@ export default function DashboardPage() {
         totalStudents++
 
         // Generar incidencias aleatorias para cada alumno (Inasistencias, Tardanzas, Agresividad)
-        const numIncidents = Math.floor(Math.random() * 8) // Aumentado para más "estrés"
+        const numIncidents = Math.floor(Math.random() * 8) + 1 // Al menos 1 incidente por alumno para el test
         let inasistenciasCount = 0
         let agresividadCritica = false
 
@@ -113,6 +113,8 @@ export default function DashboardPage() {
           if (type === "Comportamiento agresivo") {
             severity = "alto"
             agresividadCritica = true
+          } else if (type === "Tardanza") {
+            severity = Math.random() > 0.7 ? "medio" : "bajo"
           } else {
             severity = Math.random() > 0.8 ? "alto" : (Math.random() > 0.5 ? "medio" : "bajo")
           }
@@ -132,7 +134,7 @@ export default function DashboardPage() {
           totalIncidents++
 
           // Reiniciar batch si llega cerca del límite de 500
-          if (operationsInBatch >= 450) {
+          if (operationsInBatch >= 400) {
             await batch.commit()
             batch = writeBatch(db)
             operationsInBatch = 0
@@ -161,7 +163,7 @@ export default function DashboardPage() {
           totalAlerts++
         }
 
-        if (operationsInBatch >= 450) {
+        if (operationsInBatch >= 400) {
           await batch.commit()
           batch = writeBatch(db)
           operationsInBatch = 0
@@ -174,7 +176,7 @@ export default function DashboardPage() {
 
       toast({
         title: "¡Inyección Completada!",
-        description: `Creados: ${totalStudents} alumnos, ${totalIncidents} incidencias y ${totalAlerts} alertas.`,
+        description: `Creados: ${totalStudents} alumnos, ${totalIncidents} incidencias y ${totalAlerts} alertas con datos de comportamiento variados.`,
       })
     } catch (error) {
       console.error(error)
