@@ -1,44 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Global Helper Functions ---
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // --- Global Rules ---
-    // For development/prototyping, we allow any signed-in user to read and write to all main collections.
-    
-    match /{path=**} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /users/{userId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /roles_admin/{uid} { allow read, write: if isSignedIn(); }
-    match /roles_director/{uid} { allow read, write: if isSignedIn(); }
-    match /roles_docente/{uid} { allow read, write: if isSignedIn(); }
-    match /roles_auxiliar/{uid} { allow read, write: if isSignedIn(); }
-    match /roles_psicologo/{uid} { allow read, write: if isSignedIn(); }
-
-    match /students/{id} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /incidences/{id} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /alerts/{id} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /psychological_sessions/{id} {
-      allow read, write: if isSignedIn();
+    // Regla global para prototipado: permite lectura y escritura a cualquier usuario autenticado
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
