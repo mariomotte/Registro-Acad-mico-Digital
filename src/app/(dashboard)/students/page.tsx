@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -37,7 +36,7 @@ import Link from "next/link"
 import { Alumno } from "@/types"
 
 export default function StudentsPage() {
-  const { user } = useUser()
+  const { user, isUserLoading } = useUser()
   const db = useFirestore()
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState({
@@ -47,9 +46,9 @@ export default function StudentsPage() {
   })
   
   const studentsQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || isUserLoading) return null;
     return query(collection(db, "students"), orderBy("apellido", "asc"))
-  }, [db, user])
+  }, [db, user, isUserLoading])
 
   const { data: students, isLoading } = useCollection<Alumno>(studentsQuery)
 

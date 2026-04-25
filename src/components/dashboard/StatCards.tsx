@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,13 +10,25 @@ export function StatCards() {
   const db = useFirestore()
   const { user, isUserLoading } = useUser()
 
-  const studentsQuery = useMemoFirebase(() => query(collection(db, "students")), [db])
+  const studentsQuery = useMemoFirebase(() => {
+    if (!user || isUserLoading) return null;
+    return query(collection(db, "students"))
+  }, [db, user, isUserLoading])
+  
   const { data: students, isLoading: loadingStudents } = useCollection<Alumno>(studentsQuery)
 
-  const incidentsQuery = useMemoFirebase(() => query(collection(db, "incidences")), [db])
+  const incidentsQuery = useMemoFirebase(() => {
+    if (!user || isUserLoading) return null;
+    return query(collection(db, "incidences"))
+  }, [db, user, isUserLoading])
+  
   const { data: incidents, isLoading: loadingIncidents } = useCollection<Incidencia>(incidentsQuery)
 
-  const alertsQuery = useMemoFirebase(() => query(collection(db, "alerts"), where("leido", "==", false)), [db])
+  const alertsQuery = useMemoFirebase(() => {
+    if (!user || isUserLoading) return null;
+    return query(collection(db, "alerts"), where("leido", "==", false))
+  }, [db, user, isUserLoading])
+  
   const { data: alerts, isLoading: loadingAlerts } = useCollection<Alerta>(alertsQuery)
 
   const stats = [
