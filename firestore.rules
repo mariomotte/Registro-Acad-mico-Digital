@@ -1,32 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v12.0)
-    // Forzando despliegue para corregir error de permisos persistente.
-    // Acceso total para usuarios autenticados en cualquier colección.
+    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v13.0)
+    // Forzando despliegue global para usuarios autenticados.
+    // Esto permite que las consultas de listado funcionen sin restricciones de permisos.
     
     match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-
-    // Reglas explícitas para las colecciones del sistema para asegurar prioridad
-    match /users/{userId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    match /students/{studentId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    match /incidences/{incidenceId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    match /alerts/{alertId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    match /psychological_sessions/{sessionId} {
       allow read, write: if request.auth != null;
     }
   }

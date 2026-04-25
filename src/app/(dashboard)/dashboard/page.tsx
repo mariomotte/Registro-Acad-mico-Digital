@@ -90,14 +90,14 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva v11.0",
-        description: "Generando 500 alumnos con estados MIXTOS y muchas FALTAS en todos los grados...",
+        title: "Iniciando inyección masiva v13.0",
+        description: "Generando 500 alumnos con estados MIXTOS y muchas FALTAS en grados 1ro-5to...",
       })
 
       const GRADOS = ["1ro", "2do", "3ro", "4to", "5to"]
       const SECCIONES = ["A", "B", "C"]
       const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen"]
-      const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza"]
+      const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza", "Vargas", "Quispe", "Rojas"]
       
       const TIPOS: IncidentType[] = [
         "Inasistencia", 
@@ -109,9 +109,9 @@ export default function DashboardPage() {
       ]
 
       const DESC_TEMPLATES: Record<IncidentType, string[]> = {
-        "Inasistencia": ["Faltó a clase sin justificación.", "Ausencia detectada en el primer periodo.", "No se presentó a la institución hoy."],
-        "Tardanza": ["Ingreso 15 minutos tarde.", "Llegó después del timbre de entrada.", "Tardanza reiterativa."],
-        "Comportamiento agresivo": ["Mostró falta de respeto al docente.", "Uso de lenguaje soez.", "Actitud desafiante en el aula."],
+        "Inasistencia": ["Faltó a clase sin justificación.", "Ausencia detectada en el primer periodo.", "No se presentó a la institución hoy.", "El apoderado no reportó la falta."],
+        "Tardanza": ["Ingreso 15 minutos tarde.", "Llegó después del timbre de entrada.", "Tardanza reiterativa por problemas de transporte."],
+        "Comportamiento agresivo": ["Mostró falta de respeto al docente.", "Uso de lenguaje soez.", "Actitud desafiante en el aula.", "Agresión física leve a un compañero."],
         "Problema de salud": ["Se retiró a enfermería por mareos.", "Dolor de cabeza intenso.", "Indisposición estomacal."],
         "Conflicto entre alumnos": ["Discusión verbal en el patio.", "Pelea por materiales escolares.", "Empujones durante el recreo."],
         "Observación académica": ["No cumplió con la tarea.", "Se distrae con facilidad.", "Bajo rendimiento en el examen."]
@@ -119,22 +119,24 @@ export default function DashboardPage() {
 
       let batch = writeBatch(db)
       let operationsInBatch = 0
-      let totalStudents = 0
+      let totalStudentsCreated = 0
 
       for (let i = 1; i <= 500; i++) {
         const studentRef = doc(collection(db, "students"))
         const nombre = NOMBRES[Math.floor(Math.random() * NOMBRES.length)]
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
-        const fullStudentName = `${nombre} ${apellido} #${i}`
+        const fullStudentName = `${nombre} ${apellido} (Test #${i})`
         
-        // Generar estados mixtos (33% Activo, 33% Inactivo, 33% Suspendido aprox)
+        // Generar estados mixtos (33% de cada uno aproximadamente)
         const randStatus = Math.random()
         const estado = randStatus > 0.66 ? "Activo" : (randStatus > 0.33 ? "Inactivo" : "Suspendido")
+        
+        // Asignar grados de 1ro a 5to como prioridad
         const grado = GRADOS[Math.floor(Math.random() * GRADOS.length)]
 
         batch.set(studentRef, {
           nombre: nombre,
-          apellido: `${apellido} #${i}`,
+          apellido: `${apellido} (Test #${i})`,
           grado: grado,
           seccion: SECCIONES[Math.floor(Math.random() * SECCIONES.length)],
           estado: estado,
@@ -143,48 +145,47 @@ export default function DashboardPage() {
         })
         
         operationsInBatch++
-        totalStudents++
+        totalStudentsCreated++
 
-        // Generar incidencias: 80% de probabilidad de tener faltas/incidencias
-        if (Math.random() > 0.2) {
-          const numIncidents = Math.floor(Math.random() * 4) + 1
-          for (let f = 1; f <= numIncidents; f++) {
-            // Alta probabilidad de Inasistencia (Falta) como pidió el usuario
-            const isFalta = Math.random() > 0.3
-            const type: IncidentType = isFalta ? "Inasistencia" : TIPOS[Math.floor(Math.random() * TIPOS.length)]
-            
-            const incRef = doc(collection(db, "incidences"))
-            batch.set(incRef, {
+        // Generar incidencias: Mucha más probabilidad de faltas (Inasistencias)
+        const numIncidents = Math.floor(Math.random() * 6) + 1 // Hasta 6 incidentes por alumno
+        for (let f = 1; f <= numIncidents; f++) {
+          // 60% de probabilidad de que sea una Inasistencia si el alumno tiene reportes
+          const isFalta = Math.random() > 0.4
+          const type: IncidentType = isFalta ? "Inasistencia" : TIPOS[Math.floor(Math.random() * TIPOS.length)]
+          
+          const incRef = doc(collection(db, "incidences"))
+          batch.set(incRef, {
+            alumnoId: studentRef.id,
+            alumnoNombre: fullStudentName,
+            tipo: type,
+            descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
+            severidad: type === "Inasistencia" && f >= 3 ? "alto" : (type === "Comportamiento agresivo" ? "medio" : "bajo"),
+            fecha: new Date(Date.now() - (f * 86400000)).toISOString(), // Fechas pasadas
+            registradoPor: "Inyector de Pruebas",
+            registradorUserId: user.uid
+          })
+          operationsInBatch++
+
+          // Si tiene 3 o más faltas, generar una Alerta automática crítica
+          if (type === "Inasistencia" && f >= 3) {
+            const alertRef = doc(collection(db, "alerts"))
+            batch.set(alertRef, {
               alumnoId: studentRef.id,
               alumnoNombre: fullStudentName,
-              tipo: type,
-              descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
-              severidad: type === "Inasistencia" || type === "Comportamiento agresivo" ? "medio" : "bajo",
+              tipo: "Inasistencias",
+              nivel: "rojo",
+              mensaje: `${fullStudentName} ha acumulado ${f} faltas. Situación crítica.`,
               fecha: new Date().toISOString(),
-              registradoPor: "Inyector de Pruebas",
-              registradorUserId: user.uid
+              leido: false,
+              accionRequerida: "Citar al apoderado de forma urgente."
             })
             operationsInBatch++
-
-            // Si tiene más de 3 faltas, generar una Alerta automática
-            if (isFalta && f >= 3) {
-                const alertRef = doc(collection(db, "alerts"))
-                batch.set(alertRef, {
-                    alumnoId: studentRef.id,
-                    alumnoNombre: fullStudentName,
-                    tipo: "Inasistencias",
-                    nivel: "rojo",
-                    mensaje: `${fullStudentName} ha acumulado múltiples faltas consecutivas.`,
-                    fecha: new Date().toISOString(),
-                    leido: false,
-                    accionRequerida: "Comunicarse con el apoderado urgentemente."
-                })
-                operationsInBatch++
-            }
           }
         }
 
-        if (operationsInBatch >= 450) {
+        // Firestore permite máximo 500 operaciones por lote
+        if (operationsInBatch >= 400) {
           await batch.commit()
           batch = writeBatch(db)
           operationsInBatch = 0
@@ -197,7 +198,7 @@ export default function DashboardPage() {
 
       toast({
         title: "¡Inyección Completada!",
-        description: `Se han creado ${totalStudents} alumnos con estados mixtos y abundantes faltas.`,
+        description: `Se han creado ${totalStudentsCreated} alumnos con estados mixtos y abundantes faltas en grados 1ro a 5to.`,
       })
     } catch (error) {
       console.error(error)
