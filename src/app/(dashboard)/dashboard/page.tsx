@@ -47,8 +47,8 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva v6.0",
-        description: "Generando 500 alumnos con estados mixtos e incidencias críticas en grados 1ro a 5to...",
+        title: "Iniciando inyección masiva v7.0",
+        description: "Generando 500 alumnos con estados MIXTOS e inasistencias masivas en grados 1ro a 5to...",
       })
 
       const GRADOS = ["1ro", "2do", "3ro", "4to", "5to", "1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
@@ -87,8 +87,9 @@ export default function DashboardPage() {
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
         const fullStudentName = `${nombre} ${apellido} #${i}`
         
-        // Randomizar el estado del alumno para que no todos estén activos
-        const estado = ESTADOS[Math.floor(Math.random() * ESTADOS.length)]
+        // Randomizar el estado para que NO todos estén activos
+        const randEstado = Math.random()
+        const estado = randEstado > 0.7 ? "Inactivo" : (randEstado > 0.5 ? "Suspendido" : "Activo")
         
         const studentData = {
           nombre: nombre,
@@ -104,17 +105,17 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        // Generar más incidencias de Inasistencia (faltas)
-        const numIncidents = Math.floor(Math.random() * 8) + 3 
+        // Generar muchas inasistencias (faltas)
+        const numIncidents = Math.floor(Math.random() * 10) + 5 
         let inasistenciasCount = 0
         let agresividadCritica = false
 
         for (let f = 1; f <= numIncidents; f++) {
-          // Probabilidad de Inasistencia (60% para cumplir con la petición de "faltas")
+          // 70% de probabilidad de que sea Inasistencia para asegurar que haya muchas faltas
           const rand = Math.random()
           let type: IncidentType = "Inasistencia"
           
-          if (rand > 0.6) {
+          if (rand > 0.7) {
             type = TIPOS[Math.floor(Math.random() * TIPOS.length)]
           }
           
@@ -138,7 +139,7 @@ export default function DashboardPage() {
             descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
             severidad: severity,
             fecha: new Date(Date.now() - Math.floor(Math.random() * 2592000000)).toISOString(),
-            registradoPor: "Sistema de Estrés",
+            registradoPor: "Sistema v7.0",
             registradorUserId: user.uid
           })
           operationsInBatch++
@@ -151,11 +152,11 @@ export default function DashboardPage() {
           }
         }
 
-        // Generar alertas automáticas basadas en criterios críticos
+        // Alertas basadas en las faltas inyectadas
         if (inasistenciasCount >= 3 || agresividadCritica) {
           const alertRef = doc(collection(db, "alerts"))
           const alertType = inasistenciasCount >= 3 ? "Inasistencias" : "Gravedad"
-          const nivel = (inasistenciasCount >= 4 || agresividadCritica) ? "rojo" : "amarillo"
+          const nivel = (inasistenciasCount >= 5 || agresividadCritica) ? "rojo" : "amarillo"
           
           batch.set(alertRef, {
             alumnoId: studentRef.id,
@@ -163,8 +164,8 @@ export default function DashboardPage() {
             tipo: alertType,
             nivel: nivel,
             mensaje: inasistenciasCount >= 3 
-              ? `${fullStudentName} ha acumulado ${inasistenciasCount} inasistencias críticas.`
-              : `Alerta: Incidente de comportamiento agresivo de nivel alto para ${fullStudentName}.`,
+              ? `${fullStudentName} registra ${inasistenciasCount} faltas críticas acumuladas.`
+              : `Alerta: Comportamiento agresivo grave detectado en ${fullStudentName}.`,
             fecha: new Date().toISOString(),
             leido: false,
             accionRequerida: nivel === "rojo" ? "Citar urgentemente al apoderado y derivar a psicología." : "Seguimiento preventivo."
@@ -185,8 +186,8 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Inyección Completada v6.0!",
-        description: `Creados: ${totalStudents} alumnos (activos/inactivos/suspendidos), ${totalIncidents} incidencias y ${totalAlerts} alertas.`,
+        title: "¡Inyección Completada v7.0!",
+        description: `Creados: ${totalStudents} alumnos con estados variados, ${totalIncidents} incidencias (faltas masivas) y ${totalAlerts} alertas.`,
       })
     } catch (error) {
       console.error(error)
@@ -218,7 +219,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline" 
-            className="border-orange-500 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold shadow-md"
+            className="border-orange-500 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold shadow-md animate-pulse"
             onClick={runStressTest}
             disabled={isSeeding}
           >
@@ -227,7 +228,7 @@ export default function DashboardPage() {
             ) : (
               <Database className="mr-2 h-4 w-4" />
             )}
-            {isSeeding ? "Inyectando..." : "Inyectar 500 Alumnos (Test)"}
+            {isSeeding ? "Inyectando Datos..." : "Inyectar 500 Alumnos (Test v7.0)"}
           </Button>
           <Button asChild className="bg-primary hover:bg-primary/90 shadow-md">
             <Link href="/incidents/new">
