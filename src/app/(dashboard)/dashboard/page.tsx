@@ -28,9 +28,9 @@ export default function DashboardPage() {
   const { data: profile } = useDoc<Usuario>(userDocRef)
 
   const alertsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(db, "alerts"), where("leido", "==", false), limit(3))
-  }, [db, user])
+    if (!user || isUserLoading) return null;
+    return query(collection(db, "alerts"), where("leido", "==", false), limit(5))
+  }, [db, user, isUserLoading])
 
   const { data: alerts, isLoading: isLoadingAlerts } = useCollection<Alerta>(alertsQuery)
 
@@ -49,16 +49,16 @@ export default function DashboardPage() {
     try {
       toast({
         title: "Iniciando inyección",
-        description: "Generando 500 alumnos y sus incidencias...",
+        description: "Generando 500 alumnos y sus incidencias (procesando por lotes)...",
       })
 
       const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
       const SECCIONES = ["A", "B", "C", "D"]
-      const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen"]
-      const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza", "Castillo", "Ramos", "Vargas"]
+      const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen", "Diego", "Lucia", "Mateo", "Valentina"]
+      const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza", "Castillo", "Ramos", "Vargas", "Torres", "Ruiz", "Guzman"]
 
       let batch = writeBatch(db)
-      let operations = 0
+      let operationsInBatch = 0
       let totalStudents = 0
       let totalIncidents = 0
       let totalAlerts = 0
@@ -80,13 +80,13 @@ export default function DashboardPage() {
         }
         
         batch.set(studentRef, studentData)
-        operations++
+        operationsInBatch++
         totalStudents++
 
         const inasistencias = Math.floor(Math.random() * 6)
         for (let f = 1; f <= inasistencias; f++) {
           const incRef = doc(collection(db, "incidences"))
-          const incData = {
+          batch.set(incRef, {
             alumnoId: studentRef.id,
             alumnoNombre: fullStudentName,
             tipo: "Inasistencia",
@@ -95,9 +95,8 @@ export default function DashboardPage() {
             fecha: new Date().toISOString(),
             registradoPor: "Sistema de Estrés",
             registradorUserId: user.uid
-          }
-          batch.set(incRef, incData)
-          operations++
+          })
+          operationsInBatch++
           totalIncidents++
         }
 
@@ -113,18 +112,19 @@ export default function DashboardPage() {
             leido: false,
             accionRequerida: "Citar al apoderado de forma urgente."
           })
-          operations++
+          operationsInBatch++
           totalAlerts++
         }
 
-        if (operations >= 400) {
+        // Firestore batch limit is 500 operations. We commit at 400 to be safe.
+        if (operationsInBatch >= 400) {
           await batch.commit()
           batch = writeBatch(db)
-          operations = 0
+          operationsInBatch = 0
         }
       }
 
-      if (operations > 0) {
+      if (operationsInBatch > 0) {
         await batch.commit()
       }
 
@@ -137,7 +137,7 @@ export default function DashboardPage() {
       toast({
         variant: "destructive",
         title: "Error en la inyección",
-        description: "No se pudieron generar todos los datos.",
+        description: "No se pudieron generar todos los datos. Revisa la consola.",
       })
     } finally {
       setIsSeeding(false)
@@ -171,7 +171,7 @@ export default function DashboardPage() {
             ) : (
               <Database className="mr-2 h-4 w-4" />
             )}
-            {isSeeding ? "Generando Alumnos..." : "Inyectar 500 Alumnos (Test)"}
+            {isSeeding ? "Inyectando..." : "Inyectar 500 Alumnos (Test)"}
           </Button>
           <Button asChild variant="outline" className="hidden md:flex">
             <Link href="/students">

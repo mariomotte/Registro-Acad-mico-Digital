@@ -1,28 +1,46 @@
+
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, ClipboardList, AlertTriangle, TrendingUp } from "lucide-react"
+import { Users, ClipboardList, AlertTriangle, TrendingUp, Loader2 } from "lucide-react"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { collection, query, where } from "firebase/firestore"
+import { Alumno, Incidencia, Alerta } from "@/types"
 
 export function StatCards() {
+  const db = useFirestore()
+  const { user, isUserLoading } = useUser()
+
+  const studentsQuery = useMemoFirebase(() => query(collection(db, "students")), [db])
+  const { data: students, isLoading: loadingStudents } = useCollection<Alumno>(studentsQuery)
+
+  const incidentsQuery = useMemoFirebase(() => query(collection(db, "incidences")), [db])
+  const { data: incidents, isLoading: loadingIncidents } = useCollection<Incidencia>(incidentsQuery)
+
+  const alertsQuery = useMemoFirebase(() => query(collection(db, "alerts"), where("leido", "==", false)), [db])
+  const { data: alerts, isLoading: loadingAlerts } = useCollection<Alerta>(alertsQuery)
+
   const stats = [
     {
       title: "Alumnos Totales",
-      value: "842",
-      description: "+12 este mes",
+      value: loadingStudents ? "..." : (students?.length || 0).toString(),
+      description: "Población estudiantil real",
       icon: Users,
       color: "text-blue-600",
       bg: "bg-blue-100",
     },
     {
-      title: "Incidencias Hoy",
-      value: "12",
-      description: "4 de alta severidad",
+      title: "Incidencias Totales",
+      value: loadingIncidents ? "..." : (incidents?.length || 0).toString(),
+      description: "Registros históricos",
       icon: ClipboardList,
       color: "text-amber-600",
       bg: "bg-amber-100",
     },
     {
       title: "Alertas Activas",
-      value: "5",
-      description: "Requieren revisión urgente",
+      value: loadingAlerts ? "..." : (alerts?.length || 0).toString(),
+      description: "Casos sin resolver",
       icon: AlertTriangle,
       color: "text-destructive",
       bg: "bg-destructive/10",
@@ -30,7 +48,7 @@ export function StatCards() {
     {
       title: "Tasa de Asistencia",
       value: "94%",
-      description: "+2% respecto a ayer",
+      description: "Métrica del sistema",
       icon: TrendingUp,
       color: "text-emerald-600",
       bg: "bg-emerald-100",
@@ -48,7 +66,9 @@ export function StatCards() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stat.value}</div>
+            <div className="text-2xl font-bold">
+              {stat.value === "..." ? <Loader2 className="h-6 w-6 animate-spin" /> : stat.value}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
               {stat.description}
             </p>

@@ -1,5 +1,9 @@
-import { MOCK_STUDENTS, MOCK_INCIDENTS } from "@/lib/mock-data"
-import { notFound } from "next/navigation"
+
+"use client"
+
+import { useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { doc, collection, query, where, orderBy } from "firebase/firestore"
+import { useParams, useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -11,30 +15,57 @@ import {
   BookOpen, 
   History,
   FileText,
-  Plus
+  Plus,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
 import { IncidentAiSummary } from "@/components/incidents/IncidentAiSummary"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { Alumno, Incidencia } from "@/types"
+import { useState, useEffect } from "react"
 
-export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const student = MOCK_STUDENTS.find(s => s.id === id)
-  
-  if (!student) {
-    notFound()
+export default function StudentDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const db = useFirestore()
+  const id = params.id as string
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  const studentRef = useMemoFirebase(() => doc(db, "students", id), [db, id])
+  const { data: student, isLoading: isStudentLoading } = useDoc<Alumno>(studentRef)
+
+  const incidentsQuery = useMemoFirebase(() => 
+    query(collection(db, "incidences"), where("alumnoId", "==", id), orderBy("fecha", "desc")),
+  [db, id])
+  const { data: incidents, isLoading: isIncidentsLoading } = useCollection<Incidencia>(incidentsQuery)
+
+  if (isStudentLoading || !isMounted) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
-  const studentIncidents = MOCK_INCIDENTS.filter(i => i.alumnoId === student.id)
+  if (!student) {
+    return (
+      <div className="text-center py-20">
+        <h2 className="text-xl font-bold">Alumno no encontrado</h2>
+        <Button onClick={() => router.back()} className="mt-4">Volver</Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/students">
-            <ChevronLeft />
-          </Link>
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ChevronLeft />
         </Button>
         <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline">Ficha del Estudiante</h2>
       </div>
@@ -58,7 +89,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             <div className="border-t px-6 py-4 space-y-3">
               <div className="flex items-center gap-3 text-sm text-slate-600">
                 <Calendar size={16} className="text-slate-400" />
-                <span>Nacimiento: {format(new Date(student.fechaNacimiento), "PP", { locale: es })}</span>
+                <span>Nacimiento: {student.fechaNacimiento ? format(new Date(student.fechaNacimiento), "PP", { locale: es }) : "No registrada"}</span>
               </div>
               <div className="flex items-center gap-3 text-sm text-slate-600">
                 <User size={16} className="text-slate-400" />
@@ -66,7 +97,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               </div>
               <div className="flex items-center gap-3 text-sm text-slate-600">
                 <BookOpen size={16} className="text-slate-400" />
-                <span>Promedio: 15.4</span>
+                <span>Promedio General: --</span>
               </div>
             </div>
           </Card>
@@ -80,14 +111,8 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-sm">
-                <p className="font-semibold text-slate-700">María Elena Pérez</p>
-                <p className="text-muted-foreground text-xs">Madre / Principal</p>
-                <p className="mt-1 text-primary">+51 987 654 321</p>
-              </div>
-              <div className="text-sm">
-                <p className="font-semibold text-slate-700">Ricardo Pérez</p>
-                <p className="text-muted-foreground text-xs">Padre</p>
-                <p className="mt-1 text-primary">+51 912 345 678</p>
+                <p className="font-semibold text-slate-700">Información Protegida</p>
+                <p className="text-muted-foreground text-xs">Datos encriptados por seguridad.</p>
               </div>
             </CardContent>
           </Card>
@@ -95,7 +120,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
 
         {/* Right: AI Analysis & Incidents */}
         <div className="md:col-span-2 space-y-6">
-          <IncidentAiSummary student={student} incidents={studentIncidents} />
+          <IncidentAiSummary student={student} incidents={incidents || []} />
 
           <Card className="border-none shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-4 border-b">
@@ -113,9 +138,13 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               </Button>
             </CardHeader>
             <CardContent className="pt-6">
-              {studentIncidents.length > 0 ? (
+              {isIncidentsLoading ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : incidents && incidents.length > 0 ? (
                 <div className="space-y-6">
-                  {studentIncidents.map((inc) => (
+                  {incidents.map((inc) => (
                     <div key={inc.id} className="relative pl-6 border-l-2 border-slate-100 pb-6 last:pb-0">
                       <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-2 border-primary" />
                       <div className="flex items-start justify-between mb-2">
@@ -136,10 +165,14 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <User size={12} /> {inc.registradoPor}
                         </span>
-                        {inc.evidenceUrls && (
-                          <Button variant="link" size="sm" className="h-auto p-0 text-accent">
-                            <FileText size={12} className="mr-1" /> Ver evidencias
-                          </Button>
+                        {inc.evidenceUrls && inc.evidenceUrls.length > 0 && (
+                          <div className="flex gap-1">
+                            {inc.evidenceUrls.map((url, idx) => (
+                              <div key={idx} className="h-8 w-8 rounded border overflow-hidden">
+                                <img src={url} className="w-full h-full object-cover" alt="Evidencia" />
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
