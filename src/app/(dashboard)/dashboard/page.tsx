@@ -5,7 +5,7 @@ import { StatCards } from "@/components/dashboard/StatCards"
 import { RecentIncidents } from "@/components/dashboard/RecentIncidents"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Users, AlertCircle, Loader2, Database, Zap } from "lucide-react"
+import { Plus, Users, AlertCircle, Loader2, Database, Zap, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase"
 import { collection, query, where, limit, writeBatch, doc } from "firebase/firestore"
@@ -48,13 +48,13 @@ export default function DashboardPage() {
     try {
       toast({
         title: "Iniciando inyección masiva",
-        description: "Generando 500 alumnos y sus historiales de comportamiento...",
+        description: "Generando 500 alumnos con historiales variados...",
       })
 
       const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
       const SECCIONES = ["A", "B", "C", "D"]
-      const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen", "Diego", "Lucia", "Mateo", "Valentina"]
-      const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza", "Castillo", "Ramos", "Vargas", "Torres", "Ruiz", "Guzman"]
+      const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen", "Diego", "Lucia", "Mateo", "Valentina", "Jose", "Francisca"]
+      const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza", "Castillo", "Ramos", "Vargas", "Torres", "Ruiz", "Guzman", "Alvarez"]
       
       const TIPOS: IncidentType[] = [
         "Inasistencia", 
@@ -100,8 +100,8 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        // Generar incidencias aleatorias para cada alumno
-        const numIncidents = Math.floor(Math.random() * 6) // 0 a 5 incidencias por alumno
+        // Generar incidencias aleatorias para cada alumno (asegurando variedad)
+        const numIncidents = Math.floor(Math.random() * 6) // 0 a 5 incidencias
         let inasistenciasCount = 0
         let agresividadCritica = false
 
@@ -124,21 +124,21 @@ export default function DashboardPage() {
             tipo: type,
             descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
             severidad: severity,
-            fecha: new Date(Date.now() - Math.floor(Math.random() * 2592000000)).toISOString(), // Últimos 30 días
+            fecha: new Date(Date.now() - Math.floor(Math.random() * 2592000000)).toISOString(),
             registradoPor: "Sistema de Estrés",
             registradorUserId: user.uid
           })
           operationsInBatch++
           totalIncidents++
 
-          if (operationsInBatch >= 400) {
+          if (operationsInBatch >= 450) {
             await batch.commit()
             batch = writeBatch(db)
             operationsInBatch = 0
           }
         }
 
-        // Si tiene muchas inasistencias o agresividad, generar alerta
+        // Alertas basadas en la variedad de datos
         if (inasistenciasCount >= 3 || agresividadCritica) {
           const alertRef = doc(collection(db, "alerts"))
           const alertType = inasistenciasCount >= 3 ? "Inasistencias" : "Gravedad"
@@ -160,7 +160,7 @@ export default function DashboardPage() {
           totalAlerts++
         }
 
-        if (operationsInBatch >= 400) {
+        if (operationsInBatch >= 450) {
           await batch.commit()
           batch = writeBatch(db)
           operationsInBatch = 0
@@ -173,14 +173,14 @@ export default function DashboardPage() {
 
       toast({
         title: "¡Prueba de Estrés Completada!",
-        description: `Se han inyectado exitosamente ${totalStudents} alumnos, ${totalIncidents} incidentes variados (faltas, agresividad) y ${totalAlerts} alertas críticas.`,
+        description: `Se han inyectado exitosamente ${totalStudents} alumnos, ${totalIncidents} incidencias variadas y ${totalAlerts} alertas críticas.`,
       })
     } catch (error) {
       console.error(error)
       toast({
         variant: "destructive",
         title: "Fallo en la inyección",
-        description: "Revisa los permisos de Firestore y la consola.",
+        description: "Revisa la consola para más detalles.",
       })
     } finally {
       setIsSeeding(false)
@@ -200,12 +200,12 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Resumen Institucional</h2>
-          <p className="text-muted-foreground">Bienvenido, {user?.displayName || "Usuario"}. Gestión integral con datos reales.</p>
+          <p className="text-muted-foreground">Panel de gestión centralizada. Datos en tiempo real de Firestore.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline" 
-            className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold shadow-sm"
+            className="border-orange-500 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold shadow-md transition-all hover:scale-105"
             onClick={runStressTest}
             disabled={isSeeding}
           >
@@ -214,7 +214,7 @@ export default function DashboardPage() {
             ) : (
               <Database className="mr-2 h-4 w-4" />
             )}
-            {isSeeding ? "Inyectando..." : "Inyectar 500 Alumnos (Test)"}
+            {isSeeding ? "Inyectando Datos..." : "Inyectar 500 Alumnos (Test)"}
           </Button>
           <Button asChild variant="outline" className="hidden md:flex">
             <Link href="/students">
@@ -236,10 +236,10 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between bg-slate-50/50">
             <div className="space-y-1">
               <CardTitle className="text-xl">Últimos Reportes</CardTitle>
-              <CardDescription>Incidencias registradas recientemente en Firestore.</CardDescription>
+              <CardDescription>Visualización de incidencias recientes de alumnos.</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild className="text-primary font-bold">
-              <Link href="/incidents">Ver historial completo</Link>
+              <Link href="/incidents">Historial completo</Link>
             </Button>
           </CardHeader>
           <CardContent className="pt-6">
@@ -251,9 +251,9 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="text-red-500" size={20} />
-              Alertas Prioritarias
+              Alertas del Sistema
             </CardTitle>
-            <CardDescription>Casos detectados por comportamiento o inasistencia.</CardDescription>
+            <CardDescription>Casos críticos de inasistencia o agresividad.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingAlerts ? (
@@ -281,15 +281,29 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="text-center py-6 text-slate-400 text-sm italic">
-                No hay alertas críticas pendientes en este momento.
+                No hay alertas críticas pendientes.
               </div>
             )}
             <Button variant="outline" className="w-full mt-2 text-xs font-bold py-5" asChild>
-              <Link href="/alerts">Gestionar todas las alertas</Link>
+              <Link href="/alerts">Gestionar alertas</Link>
             </Button>
           </CardContent>
         </Card>
       </div>
+      
+      <Card className="border-accent/20 bg-accent/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-accent">
+            <Sparkles size={20} />
+            Consejo del Día (IA)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-slate-600">
+            "El seguimiento preventivo de las primeras 3 inasistencias reduce en un 40% el riesgo de deserción escolar."
+          </p>
+        </CardContent>
+      </Card>
     </div>
   )
 }
