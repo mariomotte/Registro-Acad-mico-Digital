@@ -1,8 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD EXPLICITAS PARA PROTOTIPADO (v3.0)
-    // Se otorga acceso total a cualquier usuario autenticado para facilitar pruebas masivas.
+    // REGLAS DE SEGURIDAD EXPLICITAS PARA PROTOTIPADO (v4.0)
+    // Se otorga acceso total a cualquier usuario autenticado para facilitar pruebas masivas y stress tests.
     
     match /users/{userId} {
       allow read, write: if request.auth != null;
@@ -30,11 +30,11 @@ service cloud.firestore {
     match /roles_auxiliar/{userId} { allow read, write: if request.auth != null; }
     match /roles_psicologo/{psicologoId} { allow read, write: if request.auth != null; }
 
-    // Regla de respaldo para cualquier otra colección
+    // Regla de respaldo global para cualquier otra colección
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
     
-    // Forzado de despliegue crítico: 2024-05-25 21:20
+    // Forzado de despliegue crítico: 2024-05-25 21:30 (v4.0)
   }
 }

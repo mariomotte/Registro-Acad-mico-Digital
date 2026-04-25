@@ -47,8 +47,8 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva v3.0",
-        description: "Generando 500 alumnos con historiales complejos de inasistencias y comportamiento...",
+        title: "Iniciando inyección masiva v4.0",
+        description: "Generando 500 alumnos con historiales variados de faltas, tardanzas y comportamiento agresivo...",
       })
 
       const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
@@ -101,7 +101,7 @@ export default function DashboardPage() {
         totalStudents++
 
         // Generar incidencias aleatorias para cada alumno (Inasistencias, Tardanzas, Agresividad)
-        const numIncidents = Math.floor(Math.random() * 8) + 1 // Al menos 1 incidente por alumno para el test
+        const numIncidents = Math.floor(Math.random() * 8) + 1 
         let inasistenciasCount = 0
         let agresividadCritica = false
 
@@ -133,7 +133,6 @@ export default function DashboardPage() {
           operationsInBatch++
           totalIncidents++
 
-          // Reiniciar batch si llega cerca del límite de 500
           if (operationsInBatch >= 400) {
             await batch.commit()
             batch = writeBatch(db)
