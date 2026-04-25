@@ -47,12 +47,13 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva v4.0",
-        description: "Generando 500 alumnos con historiales variados de faltas, tardanzas y comportamiento agresivo...",
+        title: "Iniciando inyección masiva v5.0",
+        description: "Generando 500 alumnos con estados mixtos e incidencias críticas en todos los grados...",
       })
 
-      const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
+      const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec", "1ro", "2do", "3ro", "4to", "5to"]
       const SECCIONES = ["A", "B", "C", "D"]
+      const ESTADOS = ["Activo", "Inactivo", "Suspendido"]
       const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen", "Diego", "Lucia", "Mateo", "Valentina", "Jose", "Francisca"]
       const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza", "Castillo", "Ramos", "Vargas", "Torres", "Ruiz", "Guzman", "Alvarez"]
       
@@ -86,12 +87,15 @@ export default function DashboardPage() {
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
         const fullStudentName = `${nombre} ${apellido} #${i}`
         
+        // Randomizar el estado del alumno
+        const estado = ESTADOS[Math.floor(Math.random() * ESTADOS.length)]
+        
         const studentData = {
           nombre: nombre,
           apellido: `${apellido} #${i}`,
           grado: GRADOS[Math.floor(Math.random() * GRADOS.length)],
           seccion: SECCIONES[Math.floor(Math.random() * SECCIONES.length)],
-          estado: "Activo",
+          estado: estado,
           fechaNacimiento: "2010-01-01",
           createdAt: new Date().toISOString()
         }
@@ -100,13 +104,20 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        // Generar incidencias aleatorias para cada alumno (Inasistencias, Tardanzas, Agresividad)
-        const numIncidents = Math.floor(Math.random() * 8) + 1 
+        // Generar más incidencias de Inasistencia para asegurar que aparezcan en los grados 1-5
+        const numIncidents = Math.floor(Math.random() * 10) + 2 
         let inasistenciasCount = 0
         let agresividadCritica = false
 
         for (let f = 1; f <= numIncidents; f++) {
-          const type = TIPOS[Math.floor(Math.random() * TIPOS.length)]
+          // Probabilidad alta de Inasistencia (40%)
+          const rand = Math.random()
+          let type: IncidentType = "Inasistencia"
+          
+          if (rand > 0.4) {
+            type = TIPOS[Math.floor(Math.random() * TIPOS.length)]
+          }
+          
           let severity: Severity = "bajo"
           
           if (type === "Inasistencia") inasistenciasCount++
@@ -174,8 +185,8 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Inyección Completada!",
-        description: `Creados: ${totalStudents} alumnos, ${totalIncidents} incidencias y ${totalAlerts} alertas con datos de comportamiento variados.`,
+        title: "¡Inyección Completada v5.0!",
+        description: `Creados: ${totalStudents} alumnos con estados mixtos, ${totalIncidents} incidencias y ${totalAlerts} alertas.`,
       })
     } catch (error) {
       console.error(error)
