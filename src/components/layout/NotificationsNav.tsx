@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, AlertTriangle, CheckCircle2, Info, ArrowRight } from "lucide-react"
+import { Bell, AlertTriangle, CheckCircle2, Info, ArrowRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -15,7 +15,7 @@ import { collection, query, orderBy, limit } from "firebase/firestore"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
-import { cn } from "@/lib/utils"
+import { cn } from "@/utils"
 import { Alerta } from "@/types"
 
 export function NotificationsNav() {
@@ -48,6 +48,15 @@ export function NotificationsNav() {
     }
   }
 
+  // Prevent hydration mismatch by rendering a simple button shell until mounted
+  if (!isMounted) {
+    return (
+      <Button variant="ghost" size="icon" className="relative text-slate-500">
+        <Bell size={20} />
+      </Button>
+    )
+  }
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -71,7 +80,7 @@ export function NotificationsNav() {
         <ScrollArea className="h-[300px]">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full p-8 space-y-2">
-              <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
               <p className="text-xs text-muted-foreground italic">Buscando alertas...</p>
             </div>
           ) : alerts && alerts.length > 0 ? (
@@ -94,7 +103,7 @@ export function NotificationsNav() {
                       {alert.mensaje}
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      {isMounted && alert.fecha ? format(new Date(alert.fecha), "p", { locale: es }) : "..."}
+                      {format(new Date(alert.fecha), "p", { locale: es })}
                     </p>
                   </div>
                 </Link>
