@@ -31,24 +31,25 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Search, UserPlus, Filter, X, RotateCcw, Loader2 } from "lucide-react"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, query, orderBy } from "firebase/firestore"
 import Link from "next/link"
 import { Alumno } from "@/types"
 
 export default function StudentsPage() {
+  const { user } = useUser()
+  const db = useFirestore()
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState({
     grado: "todos",
     seccion: "todos",
     estado: "todos"
   })
-
-  const db = useFirestore()
   
   const studentsQuery = useMemoFirebase(() => {
+    if (!user) return null;
     return query(collection(db, "students"), orderBy("apellido", "asc"))
-  }, [db])
+  }, [db, user])
 
   const { data: students, isLoading } = useCollection<Alumno>(studentsQuery)
 
@@ -70,7 +71,6 @@ export default function StudentsPage() {
     return matchesSearch && matchesGrado && matchesSeccion && matchesEstado
   })
 
-  // Obtener valores únicos para los selectores de filtros dinámicamente
   const grados = Array.from(new Set((students || []).map(s => s.grado))).sort()
   const secciones = Array.from(new Set((students || []).map(s => s.seccion))).sort()
 

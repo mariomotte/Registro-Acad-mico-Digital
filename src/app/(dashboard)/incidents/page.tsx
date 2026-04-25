@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -20,7 +21,7 @@ import {
   Calendar as CalendarIcon,
   Loader2
 } from "lucide-react"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, query, orderBy } from "firebase/firestore"
 import Link from "next/link"
 import { format } from "date-fns"
@@ -34,17 +35,19 @@ const severityColors = {
 }
 
 export default function IncidentsPage() {
+  const { user } = useUser()
+  const db = useFirestore()
   const [searchTerm, setSearchTerm] = useState("")
   const [isMounted, setIsMounted] = useState(false)
-  const db = useFirestore()
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
   const incidentsQuery = useMemoFirebase(() => {
+    if (!user) return null;
     return query(collection(db, "incidences"), orderBy("fecha", "desc"))
-  }, [db])
+  }, [db, user])
 
   const { data: incidences, isLoading } = useCollection<Incidencia>(incidentsQuery)
 
