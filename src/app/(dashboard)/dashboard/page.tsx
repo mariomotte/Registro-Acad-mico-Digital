@@ -6,10 +6,10 @@ import { StatCards } from "@/components/dashboard/StatCards"
 import { RecentIncidents } from "@/components/dashboard/RecentIncidents"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Users, AlertCircle, Calendar, Loader2, Database, Zap } from "lucide-react"
+import { Plus, Users, AlertCircle, Loader2, Database, Zap } from "lucide-react"
 import Link from "next/link"
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase"
-import { collection, query, where, limit, writeBatch, doc, getDocs, deleteDoc } from "firebase/firestore"
+import { collection, query, where, limit, writeBatch, doc } from "firebase/firestore"
 import { Alerta, Usuario } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -35,7 +35,15 @@ export default function DashboardPage() {
   const { data: alerts, isLoading: isLoadingAlerts } = useCollection<Alerta>(alertsQuery)
 
   const runStressTest = async () => {
-    if (!user || !profile) return
+    if (!user) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Debes estar autenticado para realizar la inyección."
+        })
+        return
+    }
+    
     setIsSeeding(true)
     
     try {
@@ -56,7 +64,6 @@ export default function DashboardPage() {
       let totalAlerts = 0
 
       for (let i = 1; i <= 500; i++) {
-        // 1. Crear Alumno
         const studentRef = doc(collection(db, "students"))
         const nombre = NOMBRES[Math.floor(Math.random() * NOMBRES.length)]
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
@@ -76,7 +83,6 @@ export default function DashboardPage() {
         operations++
         totalStudents++
 
-        // 2. Generar Inasistencias aleatorias (0 a 5)
         const inasistencias = Math.floor(Math.random() * 6)
         for (let f = 1; f <= inasistencias; f++) {
           const incRef = doc(collection(db, "incidences"))
@@ -95,7 +101,6 @@ export default function DashboardPage() {
           totalIncidents++
         }
 
-        // 3. Disparar Alerta si tiene muchas inasistencias
         if (inasistencias >= 4) {
           const alertRef = doc(collection(db, "alerts"))
           batch.set(alertRef, {
@@ -112,7 +117,6 @@ export default function DashboardPage() {
           totalAlerts++
         }
 
-        // Firestore permite max 500 ops por batch
         if (operations >= 400) {
           await batch.commit()
           batch = writeBatch(db)
@@ -148,31 +152,27 @@ export default function DashboardPage() {
     )
   }
 
-  const isAdmin = profile?.role === 'Administrador' || profile?.role === 'Director';
-
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Resumen Institucional</h2>
-          <p className="text-muted-foreground">Bienvenido, {user?.displayName || "Usuario"}. Aquí tienes el estado actual del colegio.</p>
+          <p className="text-muted-foreground">Bienvenido, {user?.displayName || "Usuario"}. Gestiona el estado de tu institución.</p>
         </div>
-        <div className="flex gap-2">
-          {isAdmin && (
-            <Button 
-              variant="outline" 
-              className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-              onClick={runStressTest}
-              disabled={isSeeding}
-            >
-              {isSeeding ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Database className="mr-2 h-4 w-4" />
-              )}
-              {isSeeding ? "Inyectando..." : "Inyectar 500 Alumnos (Test)"}
-            </Button>
-          )}
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant="outline" 
+            className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold"
+            onClick={runStressTest}
+            disabled={isSeeding}
+          >
+            {isSeeding ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Database className="mr-2 h-4 w-4" />
+            )}
+            {isSeeding ? "Generando Alumnos..." : "Inyectar 500 Alumnos (Test)"}
+          </Button>
           <Button asChild variant="outline" className="hidden md:flex">
             <Link href="/students">
               <Users className="mr-2 h-4 w-4" /> Ver Alumnos
@@ -231,7 +231,7 @@ export default function DashboardPage() {
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
                     <Link href={`/students/${alert.alumnoId}`}>
-                      <Zap size={14} className="text-amber-500" />
+                      <Zap size={14} className="text-orange-500" />
                     </Link>
                   </Button>
                 </div>
