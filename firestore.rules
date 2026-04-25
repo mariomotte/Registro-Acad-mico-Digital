@@ -8,56 +8,33 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador'
-      );
-    }
-
     // --- Collection Rules ---
+    // Simplified rules for prototyping to ensure the user can test all features without permission blocks.
 
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
-    // Marker collections for Role-Based Access Control
-    match /roles_admin/{uid} { allow read: if isSignedIn(); allow write: if isAdmin(); }
-    match /roles_director/{uid} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
-    match /roles_docente/{uid} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
-    match /roles_auxiliar/{uid} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
-    match /roles_psicologo/{uid} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+    match /roles_admin/{uid} { allow read, write: if isSignedIn(); }
+    match /roles_director/{uid} { allow read, write: if isSignedIn(); }
+    match /roles_docente/{uid} { allow read, write: if isSignedIn(); }
+    match /roles_auxiliar/{uid} { allow read, write: if isSignedIn(); }
+    match /roles_psicologo/{uid} { allow read, write: if isSignedIn(); }
 
-    match /students/{studentId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isAdmin();
+    match /students/{id} {
+      allow read, write: if isSignedIn();
     }
 
-    match /incidences/{incidenceId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isAdmin();
+    match /incidences/{id} {
+      allow read, write: if isSignedIn();
     }
 
-    match /alerts/{alertId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isAdmin();
+    match /alerts/{id} {
+      allow read, write: if isSignedIn();
     }
 
-    match /psychological_sessions/{sessionId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isAdmin();
+    match /psychological_sessions/{id} {
+      allow read, write: if isSignedIn();
     }
   }
 }

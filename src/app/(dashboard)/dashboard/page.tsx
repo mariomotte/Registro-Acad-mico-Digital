@@ -47,8 +47,8 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección",
-        description: "Generando 500 alumnos y sus incidencias variadas...",
+        title: "Iniciando inyección masiva",
+        description: "Generando 500 alumnos y sus historiales de comportamiento...",
       })
 
       const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
@@ -66,12 +66,12 @@ export default function DashboardPage() {
       ]
 
       const DESC_TEMPLATES: Record<IncidentType, string[]> = {
-        "Inasistencia": ["Faltó sin aviso previo.", "No se presentó a la primera hora.", "Ausencia reiterada en la semana."],
-        "Tardanza": ["Llegó 15 minutos tarde.", "Ingreso después del timbre de formación.", "Tardanza recurrente."],
-        "Comportamiento agresivo": ["Mostró actitud desafiante en clase.", "Gritos innecesarios durante el recreo.", "Lenguaje inapropiado con compañeros."],
-        "Problema de salud": ["Manifestó dolor estomacal.", "Presentó fiebre leve.", "Mareos durante la educación física."],
-        "Conflicto entre alumnos": ["Discusión por un asiento.", "Falta de respeto mutua en el patio.", "Malentendido durante trabajo grupal."],
-        "Observación académica": ["No trajo los materiales.", "Se distrajo constantemente con el celular.", "No completó la tarea asignada."]
+        "Inasistencia": ["Faltó sin aviso previo.", "No se presentó a la primera hora.", "Ausencia reiterada en la semana.", "Faltó alegando problemas personales."],
+        "Tardanza": ["Llegó 15 minutos tarde.", "Ingreso después del timbre de formación.", "Tardanza recurrente.", "Llegó al finalizar la primera sesión."],
+        "Comportamiento agresivo": ["Mostró actitud desafiante en clase.", "Gritos innecesarios durante el recreo.", "Lenguaje inapropiado con compañeros.", "Lanzó objetos en el salón de clases.", "Se negó a seguir instrucciones de forma agresiva."],
+        "Problema de salud": ["Manifestó dolor estomacal.", "Presentó fiebre leve.", "Mareos durante la educación física.", "Vómitos repentinos."],
+        "Conflicto entre alumnos": ["Discusión por un asiento.", "Falta de respeto mutua en el patio.", "Malentendido durante trabajo grupal.", "Pelea física leve durante el recreo."],
+        "Observación académica": ["No trajo los materiales.", "Se distrajo constantemente con el celular.", "No completó la tarea asignada.", "Se durmió durante la explicación del docente."]
       }
 
       let batch = writeBatch(db)
@@ -101,14 +101,21 @@ export default function DashboardPage() {
         totalStudents++
 
         // Generar incidencias aleatorias para cada alumno
-        const numIncidents = Math.floor(Math.random() * 8) // 0 a 7 incidencias
+        const numIncidents = Math.floor(Math.random() * 6) // 0 a 5 incidencias por alumno
         let inasistenciasCount = 0
+        let agresividadCritica = false
 
         for (let f = 1; f <= numIncidents; f++) {
           const type = TIPOS[Math.floor(Math.random() * TIPOS.length)]
-          const severity: Severity = Math.random() > 0.7 ? "alto" : (Math.random() > 0.4 ? "medio" : "bajo")
+          let severity: Severity = "bajo"
           
           if (type === "Inasistencia") inasistenciasCount++
+          if (type === "Comportamiento agresivo") {
+            severity = "alto"
+            agresividadCritica = true
+          } else {
+            severity = Math.random() > 0.8 ? "alto" : (Math.random() > 0.5 ? "medio" : "bajo")
+          }
 
           const incRef = doc(collection(db, "incidences"))
           batch.set(incRef, {
@@ -117,26 +124,25 @@ export default function DashboardPage() {
             tipo: type,
             descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
             severidad: severity,
-            fecha: new Date(Date.now() - Math.floor(Math.random() * 1000000000)).toISOString(),
+            fecha: new Date(Date.now() - Math.floor(Math.random() * 2592000000)).toISOString(), // Últimos 30 días
             registradoPor: "Sistema de Estrés",
             registradorUserId: user.uid
           })
           operationsInBatch++
           totalIncidents++
 
-          // Manejar commit si el lote está lleno
-          if (operationsInBatch >= 450) {
+          if (operationsInBatch >= 400) {
             await batch.commit()
             batch = writeBatch(db)
             operationsInBatch = 0
           }
         }
 
-        // Si tiene muchas inasistencias o un comportamiento agresivo alto, generar alerta
-        if (inasistenciasCount >= 3 || Math.random() > 0.9) {
+        // Si tiene muchas inasistencias o agresividad, generar alerta
+        if (inasistenciasCount >= 3 || agresividadCritica) {
           const alertRef = doc(collection(db, "alerts"))
           const alertType = inasistenciasCount >= 3 ? "Inasistencias" : "Gravedad"
-          const nivel = inasistenciasCount >= 4 ? "rojo" : "amarillo"
+          const nivel = (inasistenciasCount >= 4 || agresividadCritica) ? "rojo" : "amarillo"
           
           batch.set(alertRef, {
             alumnoId: studentRef.id,
@@ -144,17 +150,17 @@ export default function DashboardPage() {
             tipo: alertType,
             nivel: nivel,
             mensaje: inasistenciasCount >= 3 
-              ? `${fullStudentName} ha acumulado ${inasistenciasCount} inasistencias.`
-              : `Alerta de comportamiento crítico para ${fullStudentName}.`,
+              ? `${fullStudentName} ha acumulado ${inasistenciasCount} inasistencias críticas.`
+              : `Alerta: Incidente de comportamiento agresivo detectado para ${fullStudentName}.`,
             fecha: new Date().toISOString(),
             leido: false,
-            accionRequerida: nivel === "rojo" ? "Citar al apoderado y derivar a psicología." : "Observación en aula."
+            accionRequerida: nivel === "rojo" ? "Citar urgentemente al apoderado y derivar a psicología." : "Seguimiento en el aula por el tutor."
           })
           operationsInBatch++
           totalAlerts++
         }
 
-        if (operationsInBatch >= 450) {
+        if (operationsInBatch >= 400) {
           await batch.commit()
           batch = writeBatch(db)
           operationsInBatch = 0
@@ -166,15 +172,15 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Inyección Completada!",
-        description: `Se crearon ${totalStudents} alumnos, ${totalIncidents} incidencias variadas y ${totalAlerts} alertas.`,
+        title: "¡Prueba de Estrés Completada!",
+        description: `Se han inyectado exitosamente ${totalStudents} alumnos, ${totalIncidents} incidentes variados (faltas, agresividad) y ${totalAlerts} alertas críticas.`,
       })
     } catch (error) {
       console.error(error)
       toast({
         variant: "destructive",
-        title: "Error en la inyección",
-        description: "Revisa la consola para más detalles.",
+        title: "Fallo en la inyección",
+        description: "Revisa los permisos de Firestore y la consola.",
       })
     } finally {
       setIsSeeding(false)
@@ -199,7 +205,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline" 
-            className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold"
+            className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold shadow-sm"
             onClick={runStressTest}
             disabled={isSeeding}
           >
@@ -215,7 +221,7 @@ export default function DashboardPage() {
               <Users className="mr-2 h-4 w-4" /> Ver Alumnos
             </Link>
           </Button>
-          <Button asChild className="bg-primary hover:bg-primary/90">
+          <Button asChild className="bg-primary hover:bg-primary/90 shadow-md">
             <Link href="/incidents/new">
               <Plus className="mr-2 h-4 w-4" /> Nueva Incidencia
             </Link>
@@ -247,7 +253,7 @@ export default function DashboardPage() {
               <AlertCircle className="text-red-500" size={20} />
               Alertas Prioritarias
             </CardTitle>
-            <CardDescription>Casos detectados automáticamente.</CardDescription>
+            <CardDescription>Casos detectados por comportamiento o inasistencia.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingAlerts ? (
@@ -275,7 +281,7 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="text-center py-6 text-slate-400 text-sm italic">
-                No hay alertas críticas pendientes.
+                No hay alertas críticas pendientes en este momento.
               </div>
             )}
             <Button variant="outline" className="w-full mt-2 text-xs font-bold py-5" asChild>
