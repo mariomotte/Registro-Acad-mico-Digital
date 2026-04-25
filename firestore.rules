@@ -1,9 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v8.0)
-    // Despliegue forzado: Acceso total para usuarios autenticados
-    // Esto garantiza que 'list incidences' y otras consultas funcionen sin errores de permisos.
+    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v9.0)
+    // Despliegue forzado para resolver error de permisos persistente.
+    // Se permite lectura y escritura a CUALQUIER usuario autenticado en todas las colecciones.
     
     match /{document=**} {
       allow read, write: if request.auth != null;

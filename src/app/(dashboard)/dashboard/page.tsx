@@ -47,7 +47,7 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva v8.0",
+        title: "Iniciando inyección masiva v9.0",
         description: "Generando 500 alumnos con estados MIXTOS e inasistencias masivas en grados 1ro a 5to...",
       })
 
@@ -86,17 +86,21 @@ export default function DashboardPage() {
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
         const fullStudentName = `${nombre} ${apellido} #${i}`
         
-        // Randomizar el estado para asegurar variedad de activos e inactivos
+        // Randomizar el estado de forma equilibrada
         const randEstado = Math.random()
-        const estado = randEstado > 0.7 ? "Inactivo" : (randEstado > 0.5 ? "Suspendido" : "Activo")
+        const estado = randEstado > 0.66 ? "Inactivo" : (randEstado > 0.33 ? "Suspendido" : "Activo")
         
+        // Asignar grados de 1ro a 5to con mayor frecuencia
+        const gradoIndex = Math.floor(Math.random() * 5) // Fuerza grados 1ro a 5to
+        const grado = GRADOS[gradoIndex]
+
         const studentData = {
           nombre: nombre,
           apellido: `${apellido} #${i}`,
-          grado: GRADOS[Math.floor(Math.random() * GRADOS.length)],
+          grado: grado,
           seccion: SECCIONES[Math.floor(Math.random() * SECCIONES.length)],
           estado: estado,
-          fechaNacimiento: "2010-01-01",
+          fechaNacimiento: "2012-01-01",
           createdAt: new Date().toISOString()
         }
         
@@ -104,17 +108,17 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        // Generar un alto volumen de inasistencias
-        const numIncidents = Math.floor(Math.random() * 8) + 4 
+        // Generar un alto volumen de inasistencias para grados 1-5
+        const numIncidents = Math.floor(Math.random() * 8) + 5 
         let inasistenciasCount = 0
         let agresividadCritica = false
 
         for (let f = 1; f <= numIncidents; f++) {
-          // 75% de probabilidad de que sea Inasistencia para asegurar reportes con faltas
+          // 80% de probabilidad de Inasistencia para asegurar reportes masivos
           const rand = Math.random()
           let type: IncidentType = "Inasistencia"
           
-          if (rand > 0.75) {
+          if (rand > 0.8) {
             type = TIPOS[Math.floor(Math.random() * TIPOS.length)]
           }
           
@@ -138,7 +142,7 @@ export default function DashboardPage() {
             descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
             severidad: severity,
             fecha: new Date(Date.now() - Math.floor(Math.random() * 2592000000)).toISOString(),
-            registradoPor: "Sistema v8.0",
+            registradoPor: "Sistema v9.0",
             registradorUserId: user.uid
           })
           operationsInBatch++
@@ -163,7 +167,7 @@ export default function DashboardPage() {
             tipo: alertType,
             nivel: nivel,
             mensaje: inasistenciasCount >= 3 
-              ? `${fullStudentName} registra ${inasistenciasCount} faltas críticas.`
+              ? `${fullStudentName} registra ${inasistenciasCount} faltas críticas en ${grado}.`
               : `Alerta: Comportamiento agresivo grave en ${fullStudentName}.`,
             fecha: new Date().toISOString(),
             leido: false,
@@ -185,8 +189,8 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Inyección Completada v8.0!",
-        description: `Creados: ${totalStudents} alumnos con estados mixtos, ${totalIncidents} incidencias (faltas masivas) y ${totalAlerts} alertas.`,
+        title: "¡Inyección Completada v9.0!",
+        description: `Creados: ${totalStudents} alumnos con estados MIXTOS, ${totalIncidents} incidencias (faltas masivas) y ${totalAlerts} alertas.`,
       })
     } catch (error) {
       console.error(error)
@@ -227,7 +231,7 @@ export default function DashboardPage() {
             ) : (
               <Database className="mr-2 h-4 w-4" />
             )}
-            {isSeeding ? "Inyectando Datos..." : "Inyectar 500 Alumnos (Test v8.0)"}
+            {isSeeding ? "Inyectando Datos..." : "Inyectar 500 Alumnos (Test v9.0)"}
           </Button>
           <Button asChild className="bg-primary hover:bg-primary/90 shadow-md">
             <Link href="/incidents/new">
