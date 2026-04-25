@@ -48,7 +48,7 @@ export default function DashboardPage() {
     try {
       toast({
         title: "Iniciando inyección masiva",
-        description: "Generando 500 alumnos con historiales variados...",
+        description: "Generando 500 alumnos con historiales variados y alertas críticas...",
       })
 
       const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
@@ -66,12 +66,12 @@ export default function DashboardPage() {
       ]
 
       const DESC_TEMPLATES: Record<IncidentType, string[]> = {
-        "Inasistencia": ["Faltó sin aviso previo.", "No se presentó a la primera hora.", "Ausencia reiterada en la semana.", "Faltó alegando problemas personales."],
-        "Tardanza": ["Llegó 15 minutos tarde.", "Ingreso después del timbre de formación.", "Tardanza recurrente.", "Llegó al finalizar la primera sesión."],
-        "Comportamiento agresivo": ["Mostró actitud desafiante en clase.", "Gritos innecesarios durante el recreo.", "Lenguaje inapropiado con compañeros.", "Lanzó objetos en el salón de clases.", "Se negó a seguir instrucciones de forma agresiva."],
+        "Inasistencia": ["Faltó sin aviso previo.", "No se presentó a la primera hora.", "Ausencia reiterada en la semana.", "Faltó alegando problemas personales.", "Inasistencia injustificada detectada."],
+        "Tardanza": ["Llegó 15 minutos tarde.", "Ingreso después del timbre de formación.", "Tardanza recurrente.", "Llegó al finalizar la primera sesión.", "Llegó con demora injustificada."],
+        "Comportamiento agresivo": ["Mostró actitud desafiante en clase.", "Gritos innecesarios durante el recreo.", "Lenguaje inapropiado con compañeros.", "Lanzó objetos en el salón de clases.", "Se negó a seguir instrucciones de forma agresiva.", "Agresión verbal al docente."],
         "Problema de salud": ["Manifestó dolor estomacal.", "Presentó fiebre leve.", "Mareos durante la educación física.", "Vómitos repentinos."],
         "Conflicto entre alumnos": ["Discusión por un asiento.", "Falta de respeto mutua en el patio.", "Malentendido durante trabajo grupal.", "Pelea física leve durante el recreo."],
-        "Observación académica": ["No trajo los materiales.", "Se distrajo constantemente con el celular.", "No completó la tarea asignada.", "Se durmió durante la explicación del docente."]
+        "Observación académica": ["No trajo los materiales.", "Se distrajo constantemente con el celular.", "No completó la tarea asignada.", "Se durmió durante la explicación del docente.", "Bajo rendimiento en el último examen."]
       }
 
       let batch = writeBatch(db)
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        // Generar incidencias aleatorias para cada alumno (asegurando variedad)
+        // Generar incidencias aleatorias para cada alumno
         const numIncidents = Math.floor(Math.random() * 6) // 0 a 5 incidencias
         let inasistenciasCount = 0
         let agresividadCritica = false
@@ -131,14 +131,15 @@ export default function DashboardPage() {
           operationsInBatch++
           totalIncidents++
 
-          if (operationsInBatch >= 450) {
+          // Reiniciar batch si llega cerca del límite de 500
+          if (operationsInBatch >= 400) {
             await batch.commit()
             batch = writeBatch(db)
             operationsInBatch = 0
           }
         }
 
-        // Alertas basadas en la variedad de datos
+        // Generar alertas automáticas basadas en criterios críticos
         if (inasistenciasCount >= 3 || agresividadCritica) {
           const alertRef = doc(collection(db, "alerts"))
           const alertType = inasistenciasCount >= 3 ? "Inasistencias" : "Gravedad"
@@ -150,17 +151,17 @@ export default function DashboardPage() {
             tipo: alertType,
             nivel: nivel,
             mensaje: inasistenciasCount >= 3 
-              ? `${fullStudentName} ha acumulado ${inasistenciasCount} inasistencias críticas.`
-              : `Alerta: Incidente de comportamiento agresivo detectado para ${fullStudentName}.`,
+              ? `${fullStudentName} ha acumulado ${inasistenciasCount} inasistencias críticas en el período actual.`
+              : `Alerta: Se ha reportado un incidente de comportamiento agresivo de nivel alto para ${fullStudentName}.`,
             fecha: new Date().toISOString(),
             leido: false,
-            accionRequerida: nivel === "rojo" ? "Citar urgentemente al apoderado y derivar a psicología." : "Seguimiento en el aula por el tutor."
+            accionRequerida: nivel === "rojo" ? "Citar urgentemente al apoderado y derivar a psicología." : "Seguimiento preventivo por parte del tutor."
           })
           operationsInBatch++
           totalAlerts++
         }
 
-        if (operationsInBatch >= 450) {
+        if (operationsInBatch >= 400) {
           await batch.commit()
           batch = writeBatch(db)
           operationsInBatch = 0
@@ -172,15 +173,15 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Prueba de Estrés Completada!",
-        description: `Se han inyectado exitosamente ${totalStudents} alumnos, ${totalIncidents} incidencias variadas y ${totalAlerts} alertas críticas.`,
+        title: "¡Inyección Completada!",
+        description: `Se han creado ${totalStudents} alumnos, ${totalIncidents} incidencias variadas y ${totalAlerts} alertas críticas.`,
       })
     } catch (error) {
       console.error(error)
       toast({
         variant: "destructive",
-        title: "Fallo en la inyección",
-        description: "Revisa la consola para más detalles.",
+        title: "Error en la inyección",
+        description: "Hubo un problema al procesar los datos masivos.",
       })
     } finally {
       setIsSeeding(false)
@@ -199,8 +200,8 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Resumen Institucional</h2>
-          <p className="text-muted-foreground">Panel de gestión centralizada. Datos en tiempo real de Firestore.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Panel Institucional</h2>
+          <p className="text-muted-foreground">Resumen global de seguimiento estudiantil (Datos Reales de Firestore).</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button 
@@ -218,12 +219,12 @@ export default function DashboardPage() {
           </Button>
           <Button asChild variant="outline" className="hidden md:flex">
             <Link href="/students">
-              <Users className="mr-2 h-4 w-4" /> Ver Alumnos
+              <Users className="mr-2 h-4 w-4" /> Directorio
             </Link>
           </Button>
           <Button asChild className="bg-primary hover:bg-primary/90 shadow-md">
             <Link href="/incidents/new">
-              <Plus className="mr-2 h-4 w-4" /> Nueva Incidencia
+              <Plus className="mr-2 h-4 w-4" /> Registrar Falta
             </Link>
           </Button>
         </div>
@@ -235,11 +236,11 @@ export default function DashboardPage() {
         <Card className="lg:col-span-4 border-none shadow-sm overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between bg-slate-50/50">
             <div className="space-y-1">
-              <CardTitle className="text-xl">Últimos Reportes</CardTitle>
-              <CardDescription>Visualización de incidencias recientes de alumnos.</CardDescription>
+              <CardTitle className="text-xl">Incidencias Recientes</CardTitle>
+              <CardDescription>Últimos reportes registrados por el personal.</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild className="text-primary font-bold">
-              <Link href="/incidents">Historial completo</Link>
+              <Link href="/incidents">Ver historial</Link>
             </Button>
           </CardHeader>
           <CardContent className="pt-6">
@@ -251,9 +252,9 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="text-red-500" size={20} />
-              Alertas del Sistema
+              Alertas Prioritarias
             </CardTitle>
-            <CardDescription>Casos críticos de inasistencia o agresividad.</CardDescription>
+            <CardDescription>Casos que requieren atención inmediata.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingAlerts ? (
@@ -281,11 +282,11 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="text-center py-6 text-slate-400 text-sm italic">
-                No hay alertas críticas pendientes.
+                Sin alertas críticas pendientes.
               </div>
             )}
             <Button variant="outline" className="w-full mt-2 text-xs font-bold py-5" asChild>
-              <Link href="/alerts">Gestionar alertas</Link>
+              <Link href="/alerts">Ver todas las alertas</Link>
             </Button>
           </CardContent>
         </Card>
@@ -295,12 +296,12 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-accent">
             <Sparkles size={20} />
-            Consejo del Día (IA)
+            Tip de Gestión (IA)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-slate-600">
-            "El seguimiento preventivo de las primeras 3 inasistencias reduce en un 40% el riesgo de deserción escolar."
+          <p className="text-sm text-slate-600 italic">
+            "Un historial con múltiples inasistencias y reportes de comportamiento agresivo es un indicador crítico. Se recomienda intervención psicológica inmediata."
           </p>
         </CardContent>
       </Card>
