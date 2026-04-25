@@ -8,8 +8,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // --- Collection Rules ---
-    // Simplified rules for prototyping to ensure the user can test all features without permission blocks.
+    // --- Global Rules ---
+    // For development/prototyping, we allow any signed-in user to read and write to all main collections.
+    
+    match /{path=**} {
+      allow read, write: if isSignedIn();
+    }
 
     match /users/{userId} {
       allow read, write: if isSignedIn();
