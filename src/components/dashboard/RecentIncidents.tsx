@@ -1,3 +1,7 @@
+
+"use client"
+
+import { useState, useEffect } from "react"
 import {
   Table,
   TableBody,
@@ -7,9 +11,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MOCK_INCIDENTS } from "@/lib/mock-data"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, query, orderBy, limit } from "firebase/firestore"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { Incidencia } from "@/types"
+import { Loader2 } from "lucide-react"
 
 const severityColors = {
   bajo: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
@@ -18,8 +25,29 @@ const severityColors = {
 }
 
 export function RecentIncidents() {
+  const [isMounted, setIsMounted] = useState(false)
+  const db = useFirestore()
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  const q = useMemoFirebase(() => {
+    return query(collection(db, "incidences"), orderBy("fecha", "desc"), limit(5))
+  }, [db])
+
+  const { data: incidences, isLoading } = useCollection<Incidencia>(q)
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
-    <div className="rounded-md border bg-white">
+    <div className="rounded-md border bg-white overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="bg-slate-50">
@@ -31,21 +59,29 @@ export function RecentIncidents() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {MOCK_INCIDENTS.map((incident) => (
-            <TableRow key={incident.id} className="cursor-pointer hover:bg-slate-50">
-              <TableCell className="font-medium text-primary">{incident.alumnoNombre}</TableCell>
-              <TableCell className="text-slate-600">{incident.tipo}</TableCell>
-              <TableCell className="text-slate-500 text-xs">
-                {format(new Date(incident.fecha), "PPP", { locale: es })}
+          {incidences && incidences.length > 0 ? (
+            incidences.map((incident) => (
+              <TableRow key={incident.id} className="cursor-pointer hover:bg-slate-50">
+                <TableCell className="font-medium text-primary">{incident.alumnoNombre}</TableCell>
+                <TableCell className="text-slate-600">{incident.tipo}</TableCell>
+                <TableCell className="text-slate-500 text-xs">
+                  {isMounted && incident.fecha ? format(new Date(incident.fecha), "dd MMM, yyyy", { locale: es }) : "..."}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={severityColors[incident.severidad as keyof typeof severityColors] || ""}>
+                    {incident.severidad?.toUpperCase()}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right text-slate-500 text-xs">{incident.registradoPor}</TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
+                No hay incidencias registradas hoy.
               </TableCell>
-              <TableCell>
-                <Badge variant="outline" className={severityColors[incident.severidad]}>
-                  {incident.severidad.toUpperCase()}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right text-slate-500 text-xs">{incident.registradoPor}</TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
     </div>
