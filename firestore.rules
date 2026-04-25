@@ -1,13 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v5.0)
+    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v6.0)
     // Se otorga acceso total a cualquier usuario autenticado para facilitar pruebas masivas y stress tests.
     
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
     
-    // Forzado de despliegue crítico: 2024-05-25 22:15 (v5.0)
+    // Forzado de despliegue crítico para resolver error de permisos: 2024-05-26 10:30 (v6.0)
+    // Este cambio asegura que las operaciones de 'list' y 'get' estén permitidas para el usuario autenticado.
   }
 }

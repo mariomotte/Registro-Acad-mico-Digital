@@ -47,11 +47,11 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva v5.0",
-        description: "Generando 500 alumnos con estados mixtos e incidencias críticas en todos los grados...",
+        title: "Iniciando inyección masiva v6.0",
+        description: "Generando 500 alumnos con estados mixtos e incidencias críticas en grados 1ro a 5to...",
       })
 
-      const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec", "1ro", "2do", "3ro", "4to", "5to"]
+      const GRADOS = ["1ro", "2do", "3ro", "4to", "5to", "1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
       const SECCIONES = ["A", "B", "C", "D"]
       const ESTADOS = ["Activo", "Inactivo", "Suspendido"]
       const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen", "Diego", "Lucia", "Mateo", "Valentina", "Jose", "Francisca"]
@@ -87,7 +87,7 @@ export default function DashboardPage() {
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
         const fullStudentName = `${nombre} ${apellido} #${i}`
         
-        // Randomizar el estado del alumno
+        // Randomizar el estado del alumno para que no todos estén activos
         const estado = ESTADOS[Math.floor(Math.random() * ESTADOS.length)]
         
         const studentData = {
@@ -104,17 +104,17 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        // Generar más incidencias de Inasistencia para asegurar que aparezcan en los grados 1-5
-        const numIncidents = Math.floor(Math.random() * 10) + 2 
+        // Generar más incidencias de Inasistencia (faltas)
+        const numIncidents = Math.floor(Math.random() * 8) + 3 
         let inasistenciasCount = 0
         let agresividadCritica = false
 
         for (let f = 1; f <= numIncidents; f++) {
-          // Probabilidad alta de Inasistencia (40%)
+          // Probabilidad de Inasistencia (60% para cumplir con la petición de "faltas")
           const rand = Math.random()
           let type: IncidentType = "Inasistencia"
           
-          if (rand > 0.4) {
+          if (rand > 0.6) {
             type = TIPOS[Math.floor(Math.random() * TIPOS.length)]
           }
           
@@ -185,8 +185,8 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Inyección Completada v5.0!",
-        description: `Creados: ${totalStudents} alumnos con estados mixtos, ${totalIncidents} incidencias y ${totalAlerts} alertas.`,
+        title: "¡Inyección Completada v6.0!",
+        description: `Creados: ${totalStudents} alumnos (activos/inactivos/suspendidos), ${totalIncidents} incidencias y ${totalAlerts} alertas.`,
       })
     } catch (error) {
       console.error(error)
