@@ -1,8 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v9.0)
-    // Despliegue forzado para resolver error de permisos persistente.
+    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v10.0)
+    // Despliegue forzado para resolver error de permisos persistente en /incidences.
     // Se permite lectura y escritura a CUALQUIER usuario autenticado en todas las colecciones.
     
     match /{document=**} {

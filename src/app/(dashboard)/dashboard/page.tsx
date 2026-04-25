@@ -47,8 +47,8 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva v9.0",
-        description: "Generando 500 alumnos con estados MIXTOS e inasistencias masivas en grados 1ro a 5to...",
+        title: "Iniciando inyección masiva v10.0",
+        description: "Generando 500 alumnos con estados MIXTOS y faltas críticas en grados 1ro a 5to...",
       })
 
       const GRADOS = ["1ro", "2do", "3ro", "4to", "5to", "1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
@@ -86,12 +86,12 @@ export default function DashboardPage() {
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
         const fullStudentName = `${nombre} ${apellido} #${i}`
         
-        // Randomizar el estado de forma equilibrada
+        // Randomizar el estado de forma equilibrada para que haya Inactivos y Suspendidos
         const randEstado = Math.random()
-        const estado = randEstado > 0.66 ? "Inactivo" : (randEstado > 0.33 ? "Suspendido" : "Activo")
+        const estado = randEstado > 0.6 ? "Inactivo" : (randEstado > 0.3 ? "Suspendido" : "Activo")
         
-        // Asignar grados de 1ro a 5to con mayor frecuencia
-        const gradoIndex = Math.floor(Math.random() * 5) // Fuerza grados 1ro a 5to
+        // Asignar grados de 1ro a 5to (fuerza mayor frecuencia en estos grados)
+        const gradoIndex = Math.floor(Math.random() * 5) // Fuerza grados 1ro a 5to primordialmente
         const grado = GRADOS[gradoIndex]
 
         const studentData = {
@@ -108,28 +108,31 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        // Generar un alto volumen de inasistencias para grados 1-5
-        const numIncidents = Math.floor(Math.random() * 8) + 5 
+        // Generar un alto volumen de inasistencias (faltas) para todos estos alumnos
+        const numIncidents = Math.floor(Math.random() * 10) + 5 // Al menos 5 incidentes
         let inasistenciasCount = 0
         let agresividadCritica = false
 
         for (let f = 1; f <= numIncidents; f++) {
-          // 80% de probabilidad de Inasistencia para asegurar reportes masivos
+          // 85% de probabilidad de Inasistencia para asegurar que los reportes de "faltas" sean masivos
           const rand = Math.random()
           let type: IncidentType = "Inasistencia"
           
-          if (rand > 0.8) {
+          if (rand > 0.85) {
             type = TIPOS[Math.floor(Math.random() * TIPOS.length)]
           }
           
           let severity: Severity = "bajo"
           
           if (type === "Inasistencia") inasistenciasCount++
+          
           if (type === "Comportamiento agresivo") {
             severity = "alto"
             agresividadCritica = true
           } else if (type === "Tardanza") {
             severity = Math.random() > 0.7 ? "medio" : "bajo"
+          } else if (type === "Inasistencia") {
+            severity = inasistenciasCount >= 3 ? "alto" : "medio"
           } else {
             severity = Math.random() > 0.8 ? "alto" : (Math.random() > 0.5 ? "medio" : "bajo")
           }
@@ -142,7 +145,7 @@ export default function DashboardPage() {
             descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
             severidad: severity,
             fecha: new Date(Date.now() - Math.floor(Math.random() * 2592000000)).toISOString(),
-            registradoPor: "Sistema v9.0",
+            registradoPor: "Sistema v10.0",
             registradorUserId: user.uid
           })
           operationsInBatch++
@@ -155,7 +158,7 @@ export default function DashboardPage() {
           }
         }
 
-        // Crear alertas para alumnos con muchas faltas o incidentes graves
+        // Crear alertas automáticas basadas en la acumulación de faltas
         if (inasistenciasCount >= 3 || agresividadCritica) {
           const alertRef = doc(collection(db, "alerts"))
           const alertType = inasistenciasCount >= 3 ? "Inasistencias" : "Gravedad"
@@ -167,8 +170,8 @@ export default function DashboardPage() {
             tipo: alertType,
             nivel: nivel,
             mensaje: inasistenciasCount >= 3 
-              ? `${fullStudentName} registra ${inasistenciasCount} faltas críticas en ${grado}.`
-              : `Alerta: Comportamiento agresivo grave en ${fullStudentName}.`,
+              ? `${fullStudentName} registra ${inasistenciasCount} faltas (inasistencias) en ${grado}.`
+              : `Alerta: Comportamiento agresivo detectado en ${fullStudentName}.`,
             fecha: new Date().toISOString(),
             leido: false,
             accionRequerida: nivel === "rojo" ? "Citar urgentemente al apoderado." : "Seguimiento preventivo."
@@ -189,8 +192,8 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Inyección Completada v9.0!",
-        description: `Creados: ${totalStudents} alumnos con estados MIXTOS, ${totalIncidents} incidencias (faltas masivas) y ${totalAlerts} alertas.`,
+        title: "¡Inyección Completada v10.0!",
+        description: `Se crearon ${totalStudents} alumnos con estados MIXTOS y ${totalIncidents} reportes (mayoría Inasistencias) en grados 1ro a 5to.`,
       })
     } catch (error) {
       console.error(error)
@@ -217,7 +220,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Panel Institucional</h2>
-          <p className="text-muted-foreground">Resumen global de seguimiento estudiantil (Firestore).</p>
+          <p className="text-muted-foreground">Gestión y seguimiento en tiempo real (Firestore).</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button 
@@ -231,11 +234,11 @@ export default function DashboardPage() {
             ) : (
               <Database className="mr-2 h-4 w-4" />
             )}
-            {isSeeding ? "Inyectando Datos..." : "Inyectar 500 Alumnos (Test v9.0)"}
+            {isSeeding ? "Inyectando Datos..." : "Inyectar 500 Alumnos (Test v10.0)"}
           </Button>
           <Button asChild className="bg-primary hover:bg-primary/90 shadow-md">
             <Link href="/incidents/new">
-              <Plus className="mr-2 h-4 w-4" /> Registrar Falta
+              <Plus className="mr-2 h-4 w-4" /> Registrar Incidencia
             </Link>
           </Button>
         </div>
@@ -247,8 +250,8 @@ export default function DashboardPage() {
         <Card className="lg:col-span-4 border-none shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50/50">
             <div className="space-y-1">
-              <CardTitle className="text-xl">Incidencias Recientes</CardTitle>
-              <CardDescription>Reportes actuales de la base de datos.</CardDescription>
+              <CardTitle className="text-xl">Reportes Recientes</CardTitle>
+              <CardDescription>Últimas incidencias e inasistencias registradas.</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
