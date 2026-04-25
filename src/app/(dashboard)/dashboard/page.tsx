@@ -9,7 +9,7 @@ import { Plus, AlertCircle, Loader2, Database, Zap, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase"
 import { collection, query, where, limit, writeBatch, doc, getDocs } from "firebase/firestore"
-import { Alerta, Usuario, IncidentType, Severity } from "@/types"
+import { Alerta, Usuario, IncidentType } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
 export default function DashboardPage() {
@@ -39,7 +39,7 @@ export default function DashboardPage() {
     try {
       toast({
         title: "Iniciando limpieza masiva",
-        description: "Eliminando registros de alumnos, incidencias y alertas...",
+        description: "Eliminando todos los registros de alumnos e incidencias...",
       })
 
       const collectionsToClear = ["students", "incidences", "alerts"]
@@ -69,7 +69,7 @@ export default function DashboardPage() {
       toast({
         variant: "destructive",
         title: "Error en la limpieza",
-        description: "No se pudieron eliminar todos los datos. Intente de nuevo.",
+        description: "No se pudieron eliminar todos los datos.",
       })
     } finally {
       setIsSeeding(false)
@@ -90,12 +90,12 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva v10.0",
-        description: "Generando 500 alumnos con estados MIXTOS y faltas críticas...",
+        title: "Iniciando inyección masiva v11.0",
+        description: "Generando 500 alumnos con estados MIXTOS y muchas FALTAS en todos los grados...",
       })
 
       const GRADOS = ["1ro", "2do", "3ro", "4to", "5to"]
-      const SECCIONES = ["A", "B", "C", "D"]
+      const SECCIONES = ["A", "B", "C"]
       const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen"]
       const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza"]
       
@@ -109,12 +109,12 @@ export default function DashboardPage() {
       ]
 
       const DESC_TEMPLATES: Record<IncidentType, string[]> = {
-        "Inasistencia": ["Faltó sin aviso previo.", "Ausencia reiterada en la semana.", "Inasistencia injustificada detectada."],
-        "Tardanza": ["Llegó tarde.", "Ingreso después del timbre.", "Tardanza recurrente."],
-        "Comportamiento agresivo": ["Mostró actitud desafiante.", "Lenguaje inapropiado.", "Agresión verbal al docente."],
-        "Problema de salud": ["Manifestó dolor estomacal.", "Fiebre leve.", "Mareos."],
-        "Conflicto entre alumnos": ["Discusión por un asiento.", "Malentendido en el patio.", "Pelea física leve."],
-        "Observación académica": ["No trajo materiales.", "Se distrajo constantemente.", "Bajo rendimiento."]
+        "Inasistencia": ["Faltó a clase sin justificación.", "Ausencia detectada en el primer periodo.", "No se presentó a la institución hoy."],
+        "Tardanza": ["Ingreso 15 minutos tarde.", "Llegó después del timbre de entrada.", "Tardanza reiterativa."],
+        "Comportamiento agresivo": ["Mostró falta de respeto al docente.", "Uso de lenguaje soez.", "Actitud desafiante en el aula."],
+        "Problema de salud": ["Se retiró a enfermería por mareos.", "Dolor de cabeza intenso.", "Indisposición estomacal."],
+        "Conflicto entre alumnos": ["Discusión verbal en el patio.", "Pelea por materiales escolares.", "Empujones durante el recreo."],
+        "Observación académica": ["No cumplió con la tarea.", "Se distrae con facilidad.", "Bajo rendimiento en el examen."]
       }
 
       let batch = writeBatch(db)
@@ -127,8 +127,9 @@ export default function DashboardPage() {
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
         const fullStudentName = `${nombre} ${apellido} #${i}`
         
-        const randEstado = Math.random()
-        const estado = randEstado > 0.6 ? "Inactivo" : (randEstado > 0.3 ? "Suspendido" : "Activo")
+        // Generar estados mixtos (33% Activo, 33% Inactivo, 33% Suspendido aprox)
+        const randStatus = Math.random()
+        const estado = randStatus > 0.66 ? "Activo" : (randStatus > 0.33 ? "Inactivo" : "Suspendido")
         const grado = GRADOS[Math.floor(Math.random() * GRADOS.length)]
 
         batch.set(studentRef, {
@@ -144,25 +145,46 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        // Generar incidencias (faltas)
-        const numIncidents = Math.floor(Math.random() * 3) + 1
-        for (let f = 1; f <= numIncidents; f++) {
-          const type: IncidentType = Math.random() > 0.5 ? "Inasistencia" : TIPOS[Math.floor(Math.random() * TIPOS.length)]
-          const incRef = doc(collection(db, "incidences"))
-          batch.set(incRef, {
-            alumnoId: studentRef.id,
-            alumnoNombre: fullStudentName,
-            tipo: type,
-            descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
-            severidad: type === "Inasistencia" ? "medio" : "bajo",
-            fecha: new Date().toISOString(),
-            registradoPor: "Sistema Test",
-            registradorUserId: user.uid
-          })
-          operationsInBatch++
+        // Generar incidencias: 80% de probabilidad de tener faltas/incidencias
+        if (Math.random() > 0.2) {
+          const numIncidents = Math.floor(Math.random() * 4) + 1
+          for (let f = 1; f <= numIncidents; f++) {
+            // Alta probabilidad de Inasistencia (Falta) como pidió el usuario
+            const isFalta = Math.random() > 0.3
+            const type: IncidentType = isFalta ? "Inasistencia" : TIPOS[Math.floor(Math.random() * TIPOS.length)]
+            
+            const incRef = doc(collection(db, "incidences"))
+            batch.set(incRef, {
+              alumnoId: studentRef.id,
+              alumnoNombre: fullStudentName,
+              tipo: type,
+              descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
+              severidad: type === "Inasistencia" || type === "Comportamiento agresivo" ? "medio" : "bajo",
+              fecha: new Date().toISOString(),
+              registradoPor: "Inyector de Pruebas",
+              registradorUserId: user.uid
+            })
+            operationsInBatch++
+
+            // Si tiene más de 3 faltas, generar una Alerta automática
+            if (isFalta && f >= 3) {
+                const alertRef = doc(collection(db, "alerts"))
+                batch.set(alertRef, {
+                    alumnoId: studentRef.id,
+                    alumnoNombre: fullStudentName,
+                    tipo: "Inasistencias",
+                    nivel: "rojo",
+                    mensaje: `${fullStudentName} ha acumulado múltiples faltas consecutivas.`,
+                    fecha: new Date().toISOString(),
+                    leido: false,
+                    accionRequerida: "Comunicarse con el apoderado urgentemente."
+                })
+                operationsInBatch++
+            }
+          }
         }
 
-        if (operationsInBatch >= 400) {
+        if (operationsInBatch >= 450) {
           await batch.commit()
           batch = writeBatch(db)
           operationsInBatch = 0
@@ -174,15 +196,15 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Éxito!",
-        description: `Se inyectaron ${totalStudents} alumnos con sus incidencias.`,
+        title: "¡Inyección Completada!",
+        description: `Se han creado ${totalStudents} alumnos con estados mixtos y abundantes faltas.`,
       })
     } catch (error) {
       console.error(error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Hubo un problema al inyectar los datos.",
+        description: "Hubo un problema al inyectar los datos masivos.",
       })
     } finally {
       setIsSeeding(false)
@@ -202,7 +224,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Panel Institucional</h2>
-          <p className="text-muted-foreground">Gestión y seguimiento en tiempo real (Firestore).</p>
+          <p className="text-muted-foreground">Monitoreo y administración de la población estudiantil.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button 
@@ -212,7 +234,7 @@ export default function DashboardPage() {
             disabled={isSeeding}
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Limpiar Datos
+            Limpiar Datos de Prueba
           </Button>
           <Button 
             variant="outline" 
@@ -221,7 +243,7 @@ export default function DashboardPage() {
             disabled={isSeeding}
           >
             {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-            Inyectar 500 Alumnos
+            Inyectar 500 Alumnos (Test)
           </Button>
           <Button asChild className="bg-primary hover:bg-primary/90 shadow-md">
             <Link href="/incidents/new">

@@ -1,15 +1,15 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v11.0)
-    // Se permite lectura y escritura a cualquier usuario autenticado en todas las colecciones.
-    // Esto es necesario para las operaciones masivas de inyección y limpieza de datos.
+    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (v12.0)
+    // Forzando despliegue para corregir error de permisos persistente.
+    // Acceso total para usuarios autenticados en cualquier colección.
     
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
 
-    // Reglas explícitas para colecciones principales para evitar errores de propagación
+    // Reglas explícitas para las colecciones del sistema para asegurar prioridad
     match /users/{userId} {
       allow read, write: if request.auth != null;
     }
@@ -23,6 +23,10 @@ service cloud.firestore {
     }
     
     match /alerts/{alertId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /psychological_sessions/{sessionId} {
       allow read, write: if request.auth != null;
     }
   }
