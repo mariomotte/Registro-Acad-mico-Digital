@@ -5,10 +5,10 @@ import { StatCards } from "@/components/dashboard/StatCards"
 import { RecentIncidents } from "@/components/dashboard/RecentIncidents"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Users, AlertCircle, Loader2, Database, Zap, Sparkles } from "lucide-react"
+import { Plus, AlertCircle, Loader2, Database, Zap, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase"
-import { collection, query, where, limit, writeBatch, doc } from "firebase/firestore"
+import { collection, query, where, limit, writeBatch, doc, getDocs } from "firebase/firestore"
 import { Alerta, Usuario, IncidentType, Severity } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -33,6 +33,49 @@ export default function DashboardPage() {
 
   const { data: alerts, isLoading: isLoadingAlerts } = useCollection<Alerta>(alertsQuery)
 
+  const clearTestData = async () => {
+    if (!user) return
+    setIsSeeding(true)
+    try {
+      toast({
+        title: "Iniciando limpieza masiva",
+        description: "Eliminando registros de alumnos, incidencias y alertas...",
+      })
+
+      const collectionsToClear = ["students", "incidences", "alerts"]
+      let totalDeleted = 0
+
+      for (const collName of collectionsToClear) {
+        const q = query(collection(db, collName), limit(500))
+        const snapshot = await getDocs(q)
+        
+        if (snapshot.empty) continue
+
+        const batch = writeBatch(db)
+        snapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref)
+          totalDeleted++
+        })
+        
+        await batch.commit()
+      }
+
+      toast({
+        title: "Limpieza completada",
+        description: `Se han eliminado ${totalDeleted} registros de prueba satisfactoriamente.`,
+      })
+    } catch (error) {
+      console.error(error)
+      toast({
+        variant: "destructive",
+        title: "Error en la limpieza",
+        description: "No se pudieron eliminar todos los datos. Intente de nuevo.",
+      })
+    } finally {
+      setIsSeeding(false)
+    }
+  }
+
   const runStressTest = async () => {
     if (!user) {
         toast({
@@ -48,13 +91,13 @@ export default function DashboardPage() {
     try {
       toast({
         title: "Iniciando inyección masiva v10.0",
-        description: "Generando 500 alumnos con estados MIXTOS y faltas críticas en grados 1ro a 5to...",
+        description: "Generando 500 alumnos con estados MIXTOS y faltas críticas...",
       })
 
-      const GRADOS = ["1ro", "2do", "3ro", "4to", "5to", "1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
+      const GRADOS = ["1ro", "2do", "3ro", "4to", "5to"]
       const SECCIONES = ["A", "B", "C", "D"]
-      const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen", "Diego", "Lucia", "Mateo", "Valentina", "Jose", "Francisca"]
-      const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza", "Castillo", "Ramos", "Vargas", "Torres", "Ruiz", "Guzman", "Alvarez"]
+      const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen"]
+      const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza"]
       
       const TIPOS: IncidentType[] = [
         "Inasistencia", 
@@ -66,19 +109,17 @@ export default function DashboardPage() {
       ]
 
       const DESC_TEMPLATES: Record<IncidentType, string[]> = {
-        "Inasistencia": ["Faltó sin aviso previo.", "No se presentó a la primera hora.", "Ausencia reiterada en la semana.", "Faltó alegando problemas personales.", "Inasistencia injustificada detectada."],
-        "Tardanza": ["Llegó 15 minutos tarde.", "Ingreso después del timbre de formación.", "Tardanza recurrente.", "Llegó al finalizar la primera sesión.", "Llegó con demora injustificada."],
-        "Comportamiento agresivo": ["Mostró actitud desafiante en clase.", "Gritos innecesarios durante el recreo.", "Lenguaje inapropiado con compañeros.", "Lanzó objetos en el salón de clases.", "Se negó a seguir instrucciones de forma agresiva.", "Agresión verbal al docente."],
-        "Problema de salud": ["Manifestó dolor estomacal.", "Presentó fiebre leve.", "Mareos durante la educación física.", "Vómitos repentinos."],
-        "Conflicto entre alumnos": ["Discusión por un asiento.", "Falta de respeto mutua en el patio.", "Malentendido durante trabajo grupal.", "Pelea física leve durante el recreo."],
-        "Observación académica": ["No trajo los materiales.", "Se distrajo constantemente con el celular.", "No completó la tarea asignada.", "Se durmió durante la explicación del docente.", "Bajo rendimiento en el último examen."]
+        "Inasistencia": ["Faltó sin aviso previo.", "Ausencia reiterada en la semana.", "Inasistencia injustificada detectada."],
+        "Tardanza": ["Llegó tarde.", "Ingreso después del timbre.", "Tardanza recurrente."],
+        "Comportamiento agresivo": ["Mostró actitud desafiante.", "Lenguaje inapropiado.", "Agresión verbal al docente."],
+        "Problema de salud": ["Manifestó dolor estomacal.", "Fiebre leve.", "Mareos."],
+        "Conflicto entre alumnos": ["Discusión por un asiento.", "Malentendido en el patio.", "Pelea física leve."],
+        "Observación académica": ["No trajo materiales.", "Se distrajo constantemente.", "Bajo rendimiento."]
       }
 
       let batch = writeBatch(db)
       let operationsInBatch = 0
       let totalStudents = 0
-      let totalIncidents = 0
-      let totalAlerts = 0
 
       for (let i = 1; i <= 500; i++) {
         const studentRef = doc(collection(db, "students"))
@@ -86,15 +127,11 @@ export default function DashboardPage() {
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
         const fullStudentName = `${nombre} ${apellido} #${i}`
         
-        // Randomizar el estado de forma equilibrada para que haya Inactivos y Suspendidos
         const randEstado = Math.random()
         const estado = randEstado > 0.6 ? "Inactivo" : (randEstado > 0.3 ? "Suspendido" : "Activo")
-        
-        // Asignar grados de 1ro a 5to (fuerza mayor frecuencia en estos grados)
-        const gradoIndex = Math.floor(Math.random() * 5) // Fuerza grados 1ro a 5to primordialmente
-        const grado = GRADOS[gradoIndex]
+        const grado = GRADOS[Math.floor(Math.random() * GRADOS.length)]
 
-        const studentData = {
+        batch.set(studentRef, {
           nombre: nombre,
           apellido: `${apellido} #${i}`,
           grado: grado,
@@ -102,82 +139,27 @@ export default function DashboardPage() {
           estado: estado,
           fechaNacimiento: "2012-01-01",
           createdAt: new Date().toISOString()
-        }
+        })
         
-        batch.set(studentRef, studentData)
         operationsInBatch++
         totalStudents++
 
-        // Generar un alto volumen de inasistencias (faltas) para todos estos alumnos
-        const numIncidents = Math.floor(Math.random() * 10) + 5 // Al menos 5 incidentes
-        let inasistenciasCount = 0
-        let agresividadCritica = false
-
+        // Generar incidencias (faltas)
+        const numIncidents = Math.floor(Math.random() * 3) + 1
         for (let f = 1; f <= numIncidents; f++) {
-          // 85% de probabilidad de Inasistencia para asegurar que los reportes de "faltas" sean masivos
-          const rand = Math.random()
-          let type: IncidentType = "Inasistencia"
-          
-          if (rand > 0.85) {
-            type = TIPOS[Math.floor(Math.random() * TIPOS.length)]
-          }
-          
-          let severity: Severity = "bajo"
-          
-          if (type === "Inasistencia") inasistenciasCount++
-          
-          if (type === "Comportamiento agresivo") {
-            severity = "alto"
-            agresividadCritica = true
-          } else if (type === "Tardanza") {
-            severity = Math.random() > 0.7 ? "medio" : "bajo"
-          } else if (type === "Inasistencia") {
-            severity = inasistenciasCount >= 3 ? "alto" : "medio"
-          } else {
-            severity = Math.random() > 0.8 ? "alto" : (Math.random() > 0.5 ? "medio" : "bajo")
-          }
-
+          const type: IncidentType = Math.random() > 0.5 ? "Inasistencia" : TIPOS[Math.floor(Math.random() * TIPOS.length)]
           const incRef = doc(collection(db, "incidences"))
           batch.set(incRef, {
             alumnoId: studentRef.id,
             alumnoNombre: fullStudentName,
             tipo: type,
             descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
-            severidad: severity,
-            fecha: new Date(Date.now() - Math.floor(Math.random() * 2592000000)).toISOString(),
-            registradoPor: "Sistema v10.0",
+            severidad: type === "Inasistencia" ? "medio" : "bajo",
+            fecha: new Date().toISOString(),
+            registradoPor: "Sistema Test",
             registradorUserId: user.uid
           })
           operationsInBatch++
-          totalIncidents++
-
-          if (operationsInBatch >= 400) {
-            await batch.commit()
-            batch = writeBatch(db)
-            operationsInBatch = 0
-          }
-        }
-
-        // Crear alertas automáticas basadas en la acumulación de faltas
-        if (inasistenciasCount >= 3 || agresividadCritica) {
-          const alertRef = doc(collection(db, "alerts"))
-          const alertType = inasistenciasCount >= 3 ? "Inasistencias" : "Gravedad"
-          const nivel = (inasistenciasCount >= 5 || agresividadCritica) ? "rojo" : "amarillo"
-          
-          batch.set(alertRef, {
-            alumnoId: studentRef.id,
-            alumnoNombre: fullStudentName,
-            tipo: alertType,
-            nivel: nivel,
-            mensaje: inasistenciasCount >= 3 
-              ? `${fullStudentName} registra ${inasistenciasCount} faltas (inasistencias) en ${grado}.`
-              : `Alerta: Comportamiento agresivo detectado en ${fullStudentName}.`,
-            fecha: new Date().toISOString(),
-            leido: false,
-            accionRequerida: nivel === "rojo" ? "Citar urgentemente al apoderado." : "Seguimiento preventivo."
-          })
-          operationsInBatch++
-          totalAlerts++
         }
 
         if (operationsInBatch >= 400) {
@@ -192,15 +174,15 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Inyección Completada v10.0!",
-        description: `Se crearon ${totalStudents} alumnos con estados MIXTOS y ${totalIncidents} reportes (mayoría Inasistencias) en grados 1ro a 5to.`,
+        title: "¡Éxito!",
+        description: `Se inyectaron ${totalStudents} alumnos con sus incidencias.`,
       })
     } catch (error) {
       console.error(error)
       toast({
         variant: "destructive",
-        title: "Error en la inyección",
-        description: "Hubo un problema al procesar los datos masivos.",
+        title: "Error",
+        description: "Hubo un problema al inyectar los datos.",
       })
     } finally {
       setIsSeeding(false)
@@ -225,16 +207,21 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline" 
-            className="border-orange-500 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold shadow-md animate-pulse"
+            className="border-red-500 text-red-700 hover:bg-red-50"
+            onClick={clearTestData}
+            disabled={isSeeding}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Limpiar Datos
+          </Button>
+          <Button 
+            variant="outline" 
+            className="border-orange-500 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold"
             onClick={runStressTest}
             disabled={isSeeding}
           >
-            {isSeeding ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Database className="mr-2 h-4 w-4" />
-            )}
-            {isSeeding ? "Inyectando Datos..." : "Inyectar 500 Alumnos (Test v10.0)"}
+            {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+            Inyectar 500 Alumnos
           </Button>
           <Button asChild className="bg-primary hover:bg-primary/90 shadow-md">
             <Link href="/incidents/new">
