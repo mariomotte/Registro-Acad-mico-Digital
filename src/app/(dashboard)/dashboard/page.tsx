@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -10,7 +9,7 @@ import { Plus, Users, AlertCircle, Loader2, Database, Zap } from "lucide-react"
 import Link from "next/link"
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase"
 import { collection, query, where, limit, writeBatch, doc } from "firebase/firestore"
-import { Alerta, Usuario } from "@/types"
+import { Alerta, Usuario, IncidentType, Severity } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
 export default function DashboardPage() {
@@ -28,9 +27,9 @@ export default function DashboardPage() {
   const { data: profile } = useDoc<Usuario>(userDocRef)
 
   const alertsQuery = useMemoFirebase(() => {
-    if (!user || isUserLoading) return null;
+    if (!user) return null;
     return query(collection(db, "alerts"), where("leido", "==", false), limit(5))
-  }, [db, user, isUserLoading])
+  }, [db, user])
 
   const { data: alerts, isLoading: isLoadingAlerts } = useCollection<Alerta>(alertsQuery)
 
@@ -49,13 +48,31 @@ export default function DashboardPage() {
     try {
       toast({
         title: "Iniciando inyección",
-        description: "Generando 500 alumnos y sus incidencias (procesando por lotes)...",
+        description: "Generando 500 alumnos y sus incidencias variadas...",
       })
 
       const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
       const SECCIONES = ["A", "B", "C", "D"]
       const NOMBRES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Elena", "Pedro", "Sofia", "Ricardo", "Carmen", "Diego", "Lucia", "Mateo", "Valentina"]
       const APELLIDOS = ["Perez", "Garcia", "Rodriguez", "Martinez", "Lopez", "Soto", "Mendoza", "Castillo", "Ramos", "Vargas", "Torres", "Ruiz", "Guzman"]
+      
+      const TIPOS: IncidentType[] = [
+        "Inasistencia", 
+        "Tardanza", 
+        "Comportamiento agresivo", 
+        "Problema de salud", 
+        "Conflicto entre alumnos", 
+        "Observación académica"
+      ]
+
+      const DESC_TEMPLATES: Record<IncidentType, string[]> = {
+        "Inasistencia": ["Faltó sin aviso previo.", "No se presentó a la primera hora.", "Ausencia reiterada en la semana."],
+        "Tardanza": ["Llegó 15 minutos tarde.", "Ingreso después del timbre de formación.", "Tardanza recurrente."],
+        "Comportamiento agresivo": ["Mostró actitud desafiante en clase.", "Gritos innecesarios durante el recreo.", "Lenguaje inapropiado con compañeros."],
+        "Problema de salud": ["Manifestó dolor estomacal.", "Presentó fiebre leve.", "Mareos durante la educación física."],
+        "Conflicto entre alumnos": ["Discusión por un asiento.", "Falta de respeto mutua en el patio.", "Malentendido durante trabajo grupal."],
+        "Observación académica": ["No trajo los materiales.", "Se distrajo constantemente con el celular.", "No completó la tarea asignada."]
+      }
 
       let batch = writeBatch(db)
       let operationsInBatch = 0
@@ -83,41 +100,61 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        const inasistencias = Math.floor(Math.random() * 6)
-        for (let f = 1; f <= inasistencias; f++) {
+        // Generar incidencias aleatorias para cada alumno
+        const numIncidents = Math.floor(Math.random() * 8) // 0 a 7 incidencias
+        let inasistenciasCount = 0
+
+        for (let f = 1; f <= numIncidents; f++) {
+          const type = TIPOS[Math.floor(Math.random() * TIPOS.length)]
+          const severity: Severity = Math.random() > 0.7 ? "alto" : (Math.random() > 0.4 ? "medio" : "bajo")
+          
+          if (type === "Inasistencia") inasistenciasCount++
+
           const incRef = doc(collection(db, "incidences"))
           batch.set(incRef, {
             alumnoId: studentRef.id,
             alumnoNombre: fullStudentName,
-            tipo: "Inasistencia",
-            descripcion: `Inasistencia automática generada por prueba de estrés #${f}`,
-            severidad: f > 3 ? "alto" : "bajo",
-            fecha: new Date().toISOString(),
+            tipo: type,
+            descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
+            severidad: severity,
+            fecha: new Date(Date.now() - Math.floor(Math.random() * 1000000000)).toISOString(),
             registradoPor: "Sistema de Estrés",
             registradorUserId: user.uid
           })
           operationsInBatch++
           totalIncidents++
+
+          // Manejar commit si el lote está lleno
+          if (operationsInBatch >= 450) {
+            await batch.commit()
+            batch = writeBatch(db)
+            operationsInBatch = 0
+          }
         }
 
-        if (inasistencias >= 4) {
+        // Si tiene muchas inasistencias o un comportamiento agresivo alto, generar alerta
+        if (inasistenciasCount >= 3 || Math.random() > 0.9) {
           const alertRef = doc(collection(db, "alerts"))
+          const alertType = inasistenciasCount >= 3 ? "Inasistencias" : "Gravedad"
+          const nivel = inasistenciasCount >= 4 ? "rojo" : "amarillo"
+          
           batch.set(alertRef, {
             alumnoId: studentRef.id,
             alumnoNombre: fullStudentName,
-            tipo: "Inasistencias",
-            nivel: "rojo",
-            mensaje: `${fullStudentName} ha superado el límite de 3 inasistencias.`,
+            tipo: alertType,
+            nivel: nivel,
+            mensaje: inasistenciasCount >= 3 
+              ? `${fullStudentName} ha acumulado ${inasistenciasCount} inasistencias.`
+              : `Alerta de comportamiento crítico para ${fullStudentName}.`,
             fecha: new Date().toISOString(),
             leido: false,
-            accionRequerida: "Citar al apoderado de forma urgente."
+            accionRequerida: nivel === "rojo" ? "Citar al apoderado y derivar a psicología." : "Observación en aula."
           })
           operationsInBatch++
           totalAlerts++
         }
 
-        // Firestore batch limit is 500 operations. We commit at 400 to be safe.
-        if (operationsInBatch >= 400) {
+        if (operationsInBatch >= 450) {
           await batch.commit()
           batch = writeBatch(db)
           operationsInBatch = 0
@@ -130,14 +167,14 @@ export default function DashboardPage() {
 
       toast({
         title: "¡Inyección Completada!",
-        description: `Se crearon ${totalStudents} alumnos, ${totalIncidents} incidencias y ${totalAlerts} alertas rojas.`,
+        description: `Se crearon ${totalStudents} alumnos, ${totalIncidents} incidencias variadas y ${totalAlerts} alertas.`,
       })
     } catch (error) {
       console.error(error)
       toast({
         variant: "destructive",
         title: "Error en la inyección",
-        description: "No se pudieron generar todos los datos. Revisa la consola.",
+        description: "Revisa la consola para más detalles.",
       })
     } finally {
       setIsSeeding(false)
@@ -157,7 +194,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Resumen Institucional</h2>
-          <p className="text-muted-foreground">Bienvenido, {user?.displayName || "Usuario"}. Gestiona el estado de tu institución.</p>
+          <p className="text-muted-foreground">Bienvenido, {user?.displayName || "Usuario"}. Gestión integral con datos reales.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button 
@@ -193,7 +230,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between bg-slate-50/50">
             <div className="space-y-1">
               <CardTitle className="text-xl">Últimos Reportes</CardTitle>
-              <CardDescription>Eventos registrados recientemente en la plataforma.</CardDescription>
+              <CardDescription>Incidencias registradas recientemente en Firestore.</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild className="text-primary font-bold">
               <Link href="/incidents">Ver historial completo</Link>
@@ -210,7 +247,7 @@ export default function DashboardPage() {
               <AlertCircle className="text-red-500" size={20} />
               Alertas Prioritarias
             </CardTitle>
-            <CardDescription>Casos que requieren atención inmediata.</CardDescription>
+            <CardDescription>Casos detectados automáticamente.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingAlerts ? (
