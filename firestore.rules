@@ -1,13 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD PARA PROTOTIPADO (EduControl.A.G.G)
-    // Se permite lectura y escritura a cualquier usuario autenticado en todas las colecciones.
-    // Esto es necesario para la inyección masiva de 500 alumnos y sus reportes.
-    // v2.1 - Acceso global para usuarios autenticados
-
+    // REGLAS DE SEGURIDAD GLOBAL PARA PROTOTIPADO (v2.5)
+    // Se otorga acceso total a cualquier usuario que haya iniciado sesión.
+    // Esto es crítico para la inyección masiva de 500 alumnos y sus reportes.
+    
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
+    
+    // Forzado de despliegue: 2024-05-25 20:45
   }
 }

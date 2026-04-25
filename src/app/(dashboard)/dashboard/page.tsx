@@ -48,7 +48,7 @@ export default function DashboardPage() {
     try {
       toast({
         title: "Iniciando inyección masiva",
-        description: "Generando 500 alumnos con historiales variados y alertas críticas...",
+        description: "Generando 500 alumnos con historiales de inasistencias y comportamiento...",
       })
 
       const GRADOS = ["1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
@@ -100,8 +100,8 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudents++
 
-        // Generar incidencias aleatorias para cada alumno
-        const numIncidents = Math.floor(Math.random() * 6) // 0 a 5 incidencias
+        // Generar incidencias aleatorias para cada alumno (Inasistencias, Tardanzas, Agresividad)
+        const numIncidents = Math.floor(Math.random() * 8) // Aumentado para más "estrés"
         let inasistenciasCount = 0
         let agresividadCritica = false
 
@@ -132,7 +132,7 @@ export default function DashboardPage() {
           totalIncidents++
 
           // Reiniciar batch si llega cerca del límite de 500
-          if (operationsInBatch >= 400) {
+          if (operationsInBatch >= 450) {
             await batch.commit()
             batch = writeBatch(db)
             operationsInBatch = 0
@@ -151,17 +151,17 @@ export default function DashboardPage() {
             tipo: alertType,
             nivel: nivel,
             mensaje: inasistenciasCount >= 3 
-              ? `${fullStudentName} ha acumulado ${inasistenciasCount} inasistencias críticas en el período actual.`
-              : `Alerta: Se ha reportado un incidente de comportamiento agresivo de nivel alto para ${fullStudentName}.`,
+              ? `${fullStudentName} ha acumulado ${inasistenciasCount} inasistencias críticas.`
+              : `Alerta: Incidente de comportamiento agresivo de nivel alto para ${fullStudentName}.`,
             fecha: new Date().toISOString(),
             leido: false,
-            accionRequerida: nivel === "rojo" ? "Citar urgentemente al apoderado y derivar a psicología." : "Seguimiento preventivo por parte del tutor."
+            accionRequerida: nivel === "rojo" ? "Citar urgentemente al apoderado y derivar a psicología." : "Seguimiento preventivo."
           })
           operationsInBatch++
           totalAlerts++
         }
 
-        if (operationsInBatch >= 400) {
+        if (operationsInBatch >= 450) {
           await batch.commit()
           batch = writeBatch(db)
           operationsInBatch = 0
@@ -174,7 +174,7 @@ export default function DashboardPage() {
 
       toast({
         title: "¡Inyección Completada!",
-        description: `Se han creado ${totalStudents} alumnos, ${totalIncidents} incidencias variadas y ${totalAlerts} alertas críticas.`,
+        description: `Creados: ${totalStudents} alumnos, ${totalIncidents} incidencias y ${totalAlerts} alertas.`,
       })
     } catch (error) {
       console.error(error)
@@ -201,12 +201,12 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Panel Institucional</h2>
-          <p className="text-muted-foreground">Resumen global de seguimiento estudiantil (Datos Reales de Firestore).</p>
+          <p className="text-muted-foreground">Resumen global de seguimiento estudiantil (Firestore).</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline" 
-            className="border-orange-500 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold shadow-md transition-all hover:scale-105"
+            className="border-orange-500 bg-orange-50 text-orange-700 hover:bg-orange-100 font-bold shadow-md"
             onClick={runStressTest}
             disabled={isSeeding}
           >
@@ -215,12 +215,7 @@ export default function DashboardPage() {
             ) : (
               <Database className="mr-2 h-4 w-4" />
             )}
-            {isSeeding ? "Inyectando Datos..." : "Inyectar 500 Alumnos (Test)"}
-          </Button>
-          <Button asChild variant="outline" className="hidden md:flex">
-            <Link href="/students">
-              <Users className="mr-2 h-4 w-4" /> Directorio
-            </Link>
+            {isSeeding ? "Inyectando..." : "Inyectar 500 Alumnos (Test)"}
           </Button>
           <Button asChild className="bg-primary hover:bg-primary/90 shadow-md">
             <Link href="/incidents/new">
@@ -234,14 +229,11 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-7">
         <Card className="lg:col-span-4 border-none shadow-sm overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between bg-slate-50/50">
+          <CardHeader className="bg-slate-50/50">
             <div className="space-y-1">
               <CardTitle className="text-xl">Incidencias Recientes</CardTitle>
-              <CardDescription>Últimos reportes registrados por el personal.</CardDescription>
+              <CardDescription>Reportes actuales de la base de datos.</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild className="text-primary font-bold">
-              <Link href="/incidents">Ver historial</Link>
-            </Button>
           </CardHeader>
           <CardContent className="pt-6">
             <RecentIncidents />
@@ -254,7 +246,6 @@ export default function DashboardPage() {
               <AlertCircle className="text-red-500" size={20} />
               Alertas Prioritarias
             </CardTitle>
-            <CardDescription>Casos que requieren atención inmediata.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingAlerts ? (
@@ -268,9 +259,9 @@ export default function DashboardPage() {
                     <div className="text-xl">
                       {alert.nivel === 'rojo' ? '🔴' : alert.nivel === 'amarillo' ? '🟡' : '🟢'}
                     </div>
-                    <div className="flex flex-col">
-                      <span className="font-bold text-slate-700 group-hover:text-primary transition-colors">{alert.alumnoNombre}</span>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{alert.tipo}</span>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="font-bold text-slate-700 truncate">{alert.alumnoNombre}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold">{alert.tipo}</span>
                     </div>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
@@ -291,20 +282,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
-      <Card className="border-accent/20 bg-accent/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-accent">
-            <Sparkles size={20} />
-            Tip de Gestión (IA)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-slate-600 italic">
-            "Un historial con múltiples inasistencias y reportes de comportamiento agresivo es un indicador crítico. Se recomienda intervención psicológica inmediata."
-          </p>
-        </CardContent>
-      </Card>
     </div>
   )
 }
