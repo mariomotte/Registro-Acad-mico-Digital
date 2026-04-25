@@ -22,8 +22,9 @@ export default function DashboardPage() {
   }, [])
 
   const alertsQuery = useMemoFirebase(() => {
+    if (!user) return null;
     return query(collection(db, "alerts"), where("leido", "==", false), limit(3))
-  }, [db])
+  }, [db, user])
 
   const { data: alerts, isLoading: isLoadingAlerts } = useCollection<Alerta>(alertsQuery)
 

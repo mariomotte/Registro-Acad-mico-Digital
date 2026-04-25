@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useCollection, useMemoFirebase, useFirestore } from "@/firebase"
+import { useCollection, useMemoFirebase, useFirestore, useUser } from "@/firebase"
 import { collection, query, orderBy, limit } from "firebase/firestore"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -20,6 +20,7 @@ import { Alerta } from "@/types"
 
 export function NotificationsNav() {
   const db = useFirestore()
+  const { user } = useUser()
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
@@ -27,12 +28,13 @@ export function NotificationsNav() {
   }, [])
   
   const alertsQuery = useMemoFirebase(() => {
+    if (!user) return null;
     return query(
       collection(db, "alerts"),
       orderBy("fecha", "desc"),
       limit(5)
     )
-  }, [db])
+  }, [db, user])
 
   const { data: alerts, isLoading } = useCollection<Alerta>(alertsQuery)
   const unreadCount = alerts?.filter(a => !a.leido).length || 0
@@ -92,7 +94,7 @@ export function NotificationsNav() {
                       {alert.mensaje}
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      {isMounted ? format(new Date(alert.fecha), "p", { locale: es }) : "..."}
+                      {isMounted && alert.fecha ? format(new Date(alert.fecha), "p", { locale: es }) : "..."}
                     </p>
                   </div>
                 </Link>

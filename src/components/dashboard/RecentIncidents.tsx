@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, query, orderBy, limit } from "firebase/firestore"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -27,14 +27,16 @@ const severityColors = {
 export function RecentIncidents() {
   const [isMounted, setIsMounted] = useState(false)
   const db = useFirestore()
+  const { user } = useUser()
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
   const q = useMemoFirebase(() => {
+    if (!user) return null;
     return query(collection(db, "incidences"), orderBy("fecha", "desc"), limit(5))
-  }, [db])
+  }, [db, user])
 
   const { data: incidences, isLoading } = useCollection<Incidencia>(q)
 
