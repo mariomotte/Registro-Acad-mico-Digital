@@ -90,8 +90,8 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Iniciando inyección masiva v13.0",
-        description: "Generando 500 alumnos con estados MIXTOS y muchas FALTAS en grados 1ro-5to...",
+        title: "Inyectando 500 Alumnos (v15.2)",
+        description: "Generando alumnos con estados MIXTOS y muchas FALTAS en 1ro-5to...",
       })
 
       const GRADOS = ["1ro", "2do", "3ro", "4to", "5to"]
@@ -147,11 +147,10 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudentsCreated++
 
-        // Generar incidencias: Mucha más probabilidad de faltas (Inasistencias)
-        const numIncidents = Math.floor(Math.random() * 6) + 1 // Hasta 6 incidentes por alumno
+        // Generar incidencias: Mucha más probabilidad de faltas (80% probabilidad)
+        const numIncidents = Math.floor(Math.random() * 8) + 1 
         for (let f = 1; f <= numIncidents; f++) {
-          // 60% de probabilidad de que sea una Inasistencia si el alumno tiene reportes
-          const isFalta = Math.random() > 0.4
+          const isFalta = Math.random() > 0.2
           const type: IncidentType = isFalta ? "Inasistencia" : TIPOS[Math.floor(Math.random() * TIPOS.length)]
           
           const incRef = doc(collection(db, "incidences"))
@@ -161,30 +160,28 @@ export default function DashboardPage() {
             tipo: type,
             descripcion: DESC_TEMPLATES[type][Math.floor(Math.random() * DESC_TEMPLATES[type].length)],
             severidad: type === "Inasistencia" && f >= 3 ? "alto" : (type === "Comportamiento agresivo" ? "medio" : "bajo"),
-            fecha: new Date(Date.now() - (f * 86400000)).toISOString(), // Fechas pasadas
-            registradoPor: "Inyector de Pruebas",
+            fecha: new Date(Date.now() - (f * 86400000)).toISOString(),
+            registradoPor: "Sistema de Pruebas",
             registradorUserId: user.uid
           })
           operationsInBatch++
 
-          // Si tiene 3 o más faltas, generar una Alerta automática crítica
-          if (type === "Inasistencia" && f >= 3) {
+          if (type === "Inasistencia" && f >= 4) {
             const alertRef = doc(collection(db, "alerts"))
             batch.set(alertRef, {
               alumnoId: studentRef.id,
               alumnoNombre: fullStudentName,
               tipo: "Inasistencias",
               nivel: "rojo",
-              mensaje: `${fullStudentName} ha acumulado ${f} faltas. Situación crítica.`,
+              mensaje: `${fullStudentName} ha acumulado ${f} faltas. Requiere intervención inmediata.`,
               fecha: new Date().toISOString(),
               leido: false,
-              accionRequerida: "Citar al apoderado de forma urgente."
+              accionRequerida: "Citar al apoderado urgentemente."
             })
             operationsInBatch++
           }
         }
 
-        // Firestore permite máximo 500 operaciones por lote
         if (operationsInBatch >= 400) {
           await batch.commit()
           batch = writeBatch(db)
@@ -197,15 +194,15 @@ export default function DashboardPage() {
       }
 
       toast({
-        title: "¡Inyección Completada!",
-        description: `Se han creado ${totalStudentsCreated} alumnos con estados mixtos y abundantes faltas en grados 1ro a 5to.`,
+        title: "¡Éxito!",
+        description: `Se inyectaron 500 alumnos con estados mixtos y abundantes faltas en grados 1ro-5to.`,
       })
     } catch (error) {
       console.error(error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Hubo un problema al inyectar los datos masivos.",
+        description: "No se pudieron inyectar los datos.",
       })
     } finally {
       setIsSeeding(false)
@@ -225,7 +222,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Panel Institucional</h2>
-          <p className="text-muted-foreground">Monitoreo y administración de la población estudiantil.</p>
+          <p className="text-muted-foreground">Monitoreo global de la población estudiantil.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button 
@@ -261,7 +258,7 @@ export default function DashboardPage() {
           <CardHeader className="bg-slate-50/50">
             <div className="space-y-1">
               <CardTitle className="text-xl">Reportes Recientes</CardTitle>
-              <CardDescription>Últimas incidencias e inasistencias registradas.</CardDescription>
+              <CardDescription>Seguimiento en tiempo real de los sucesos escolares.</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="pt-6">

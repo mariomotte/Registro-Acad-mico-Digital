@@ -1,15 +1,15 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD v15.0 - PERMISOS TOTALES PARA USUARIOS AUTENTICADOS
-    // Se permite lectura y escritura global para evitar errores de permisos durante el prototipado
-    // Estas reglas aseguran que las consultas de listado (list) y lectura (get) funcionen siempre.
+    // REGLAS DE SEGURIDAD v15.2 - DESPLIEGUE FORZADO
+    // Permisos totales para usuarios autenticados en todas las colecciones.
+    // Esta regla global asegura que las consultas de listado (list) y lectura (get) no fallen.
     
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
     
-    // Reglas explícitas para colecciones críticas para mayor seguridad en la evaluación
+    // Reglas explícitas adicionales para garantizar la propagación en colecciones críticas
     match /incidences/{docId} {
       allow read, write: if request.auth != null;
     }
@@ -21,7 +21,7 @@ service cloud.firestore {
     match /alerts/{docId} {
       allow read, write: if request.auth != null;
     }
-    
+
     match /users/{docId} {
       allow read, write: if request.auth != null;
     }
