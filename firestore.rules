@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD v15.2 - DESPLIEGUE FORZADO
+    // REGLAS DE SEGURIDAD v16.0 - DESPLIEGUE FORZADO
     // Permisos totales para usuarios autenticados en todas las colecciones.
     // Esta regla global asegura que las consultas de listado (list) y lectura (get) no fallen.
     

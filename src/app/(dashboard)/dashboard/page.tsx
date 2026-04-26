@@ -90,7 +90,7 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Inyectando 500 Alumnos (v15.2)",
+        title: "Inyectando 500 Alumnos (v16.0)",
         description: "Generando alumnos con estados MIXTOS y muchas FALTAS en 1ro-5to...",
       })
 
