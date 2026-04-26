@@ -90,8 +90,8 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Inyectando 500 Alumnos (v16.0)",
-        description: "Generando alumnos con estados MIXTOS y muchas FALTAS en 1ro-5to...",
+        title: "Inyectando 500 Alumnos (v17.0)",
+        description: "Generando alumnos con estados MIXTOS y masivas FALTAS en 1ro-5to...",
       })
 
       const GRADOS = ["1ro", "2do", "3ro", "4to", "5to"]
@@ -125,13 +125,15 @@ export default function DashboardPage() {
         const studentRef = doc(collection(db, "students"))
         const nombre = NOMBRES[Math.floor(Math.random() * NOMBRES.length)]
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
-        const fullStudentName = `${nombre} ${apellido} (Test #${i})`
+        const fullStudentName = `${nombre} ${apellido}`
         
-        // Generar estados mixtos (33% de cada uno aproximadamente)
+        // CORRECCIÓN: Generar estados MIXTOS (1/3 cada uno)
         const randStatus = Math.random()
-        const estado = randStatus > 0.66 ? "Activo" : (randStatus > 0.33 ? "Inactivo" : "Suspendido")
+        let estado: 'Activo' | 'Inactivo' | 'Suspendido' = "Activo"
+        if (randStatus > 0.66) estado = "Suspendido"
+        else if (randStatus > 0.33) estado = "Inactivo"
         
-        // Asignar grados de 1ro a 5to como prioridad
+        // CORRECCIÓN: Concentrar en grados 1ro a 5to
         const grado = GRADOS[Math.floor(Math.random() * GRADOS.length)]
 
         batch.set(studentRef, {
@@ -166,6 +168,7 @@ export default function DashboardPage() {
           })
           operationsInBatch++
 
+          // Generar alertas para alumnos con muchas faltas
           if (type === "Inasistencia" && f >= 4) {
             const alertRef = doc(collection(db, "alerts"))
             batch.set(alertRef, {
@@ -173,7 +176,7 @@ export default function DashboardPage() {
               alumnoNombre: fullStudentName,
               tipo: "Inasistencias",
               nivel: "rojo",
-              mensaje: `${fullStudentName} ha acumulado ${f} faltas. Requiere intervención inmediata.`,
+              mensaje: `${fullStudentName} ha acumulado ${f} faltas en el grado ${grado}. Requiere intervención inmediata.`,
               fecha: new Date().toISOString(),
               leido: false,
               accionRequerida: "Citar al apoderado urgentemente."
