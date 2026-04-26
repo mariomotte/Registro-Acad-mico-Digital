@@ -90,8 +90,8 @@ export default function DashboardPage() {
     
     try {
       toast({
-        title: "Inyectando 500 Alumnos (v17.0)",
-        description: "Generando alumnos con estados MIXTOS y masivas FALTAS en 1ro-5to...",
+        title: "Inyectando 500 Alumnos (v18.0)",
+        description: "Generando alumnos con estados MIXTOS y masivas FALTAS en grados 1-5...",
       })
 
       const GRADOS = ["1ro", "2do", "3ro", "4to", "5to"]
@@ -127,13 +127,13 @@ export default function DashboardPage() {
         const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)]
         const fullStudentName = `${nombre} ${apellido}`
         
-        // CORRECCIÓN: Generar estados MIXTOS (1/3 cada uno)
+        // Generar estados MIXTOS (equitativo)
         const randStatus = Math.random()
         let estado: 'Activo' | 'Inactivo' | 'Suspendido' = "Activo"
         if (randStatus > 0.66) estado = "Suspendido"
         else if (randStatus > 0.33) estado = "Inactivo"
         
-        // CORRECCIÓN: Concentrar en grados 1ro a 5to
+        // Concentrar en grados 1ro a 5to como solicitado
         const grado = GRADOS[Math.floor(Math.random() * GRADOS.length)]
 
         batch.set(studentRef, {
@@ -149,7 +149,7 @@ export default function DashboardPage() {
         operationsInBatch++
         totalStudentsCreated++
 
-        // Generar incidencias: Mucha más probabilidad de faltas (80% probabilidad)
+        // Generar incidencias: 80% de probabilidad de tener faltas
         const numIncidents = Math.floor(Math.random() * 8) + 1 
         for (let f = 1; f <= numIncidents; f++) {
           const isFalta = Math.random() > 0.2
@@ -168,7 +168,7 @@ export default function DashboardPage() {
           })
           operationsInBatch++
 
-          // Generar alertas para alumnos con muchas faltas
+          // Generar alertas automáticas para alumnos con muchas faltas (4 o más)
           if (type === "Inasistencia" && f >= 4) {
             const alertRef = doc(collection(db, "alerts"))
             batch.set(alertRef, {
@@ -185,6 +185,7 @@ export default function DashboardPage() {
           }
         }
 
+        // Firestore permite máximo 500 por lote
         if (operationsInBatch >= 400) {
           await batch.commit()
           batch = writeBatch(db)

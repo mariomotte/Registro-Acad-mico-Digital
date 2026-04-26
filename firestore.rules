@@ -1,10 +1,22 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE SEGURIDAD v17.0 - DESPLIEGUE CRÍTICO
-    // Se otorga acceso total de lectura y escritura a cualquier usuario autenticado.
-    // Esta regla global resuelve los errores de permisos en las colecciones de incidencias y alumnos.
+    // REGLAS DE SEGURIDAD v18.0 - DESPLIEGUE FORZADO
+    // Se otorga acceso total de lectura y escritura a cualquier usuario autenticado en todas las colecciones.
+    // Esta estructura explícita resuelve los errores de permisos persistentes en listados.
     
+    match /users/{document=**} { allow read, write: if request.auth != null; }
+    match /roles_admin/{document=**} { allow read, write: if request.auth != null; }
+    match /roles_director/{document=**} { allow read, write: if request.auth != null; }
+    match /roles_docente/{document=**} { allow read, write: if request.auth != null; }
+    match /roles_auxiliar/{document=**} { allow read, write: if request.auth != null; }
+    match /roles_psicologo/{document=**} { allow read, write: if request.auth != null; }
+    match /students/{document=**} { allow read, write: if request.auth != null; }
+    match /incidences/{document=**} { allow read, write: if request.auth != null; }
+    match /alerts/{document=**} { allow read, write: if request.auth != null; }
+    match /psychological_sessions/{document=**} { allow read, write: if request.auth != null; }
+
+    // Regla global de respaldo para cualquier otra ruta
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
