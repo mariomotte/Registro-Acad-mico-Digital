@@ -15,7 +15,11 @@ import {
   History,
   Plus,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Phone,
+  Mail,
+  MapPin,
+  ShieldAlert
 } from "lucide-react"
 import Link from "next/link"
 import { IncidentAiSummary } from "@/components/incidents/IncidentAiSummary"
@@ -23,6 +27,7 @@ import { format, isValid } from "date-fns"
 import { es } from "date-fns/locale"
 import { Alumno, Incidencia } from "@/types"
 import { useState, useEffect } from "react"
+import { cn } from "@/lib/utils"
 
 export default function StudentDetailPage() {
   const params = useParams()
@@ -52,12 +57,21 @@ export default function StudentDetailPage() {
     return format(d, pattern, { locale: es })
   }
 
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'alto': return 'bg-red-50 text-red-700 border-red-200';
+      case 'medio': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'bajo': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      default: return 'bg-slate-50';
+    }
+  }
+
   if (isStudentLoading || !isMounted) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-          <p className="text-sm text-muted-foreground">Cargando expediente...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
+          <p className="text-sm font-medium text-slate-500 animate-pulse">Cargando expediente académico...</p>
         </div>
       </div>
     )
@@ -65,179 +79,229 @@ export default function StudentDetailPage() {
 
   if (studentError || incidentsError) {
     return (
-      <div className="max-w-md mx-auto py-20 text-center space-y-4">
-        <AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
-        <h2 className="text-xl font-bold">Error de acceso</h2>
-        <p className="text-muted-foreground text-sm">
-          No tienes permisos suficientes para ver esta información o hubo un error en la red.
+      <div className="max-w-md mx-auto py-20 text-center space-y-4 bg-white rounded-2xl shadow-xl p-8 border border-red-100">
+        <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <ShieldAlert className="h-8 w-8 text-red-600" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-900">Error de Acceso</h2>
+        <p className="text-slate-600 text-sm">
+          No se pudieron cargar los datos. Verifique sus permisos de red o intente iniciar sesión nuevamente.
         </p>
-        <Button onClick={() => router.back()} variant="outline">Volver</Button>
+        <div className="flex gap-3 justify-center">
+          <Button onClick={() => window.location.reload()} variant="outline">Reintentar</Button>
+          <Button onClick={() => router.push('/dashboard')}>Ir al Dashboard</Button>
+        </div>
       </div>
     )
   }
 
   if (!student) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-xl font-bold">Alumno no encontrado</h2>
-        <p className="text-muted-foreground mb-6">El registro solicitado no existe en nuestra base de datos.</p>
-        <Button onClick={() => router.back()}>Volver a la lista</Button>
+      <div className="text-center py-20 bg-white rounded-2xl shadow-sm border p-10">
+        <History size={48} className="mx-auto text-slate-200 mb-4" />
+        <h2 className="text-2xl font-bold text-slate-800">Alumno no encontrado</h2>
+        <p className="text-slate-500 mb-6 max-w-sm mx-auto">El registro solicitado no existe o fue eliminado de la base de datos institucional.</p>
+        <Button onClick={() => router.push('/students')} className="bg-primary px-8">Volver a la Lista</Button>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
-          <ChevronLeft />
-        </Button>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline">Ficha del Estudiante</h2>
-          <p className="text-xs text-muted-foreground">Expediente oficial institucional</p>
+    <div className="space-y-8 max-w-7xl mx-auto pb-20">
+      <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={() => router.back()} className="rounded-full shadow-sm">
+            <ChevronLeft size={20} />
+          </Button>
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 font-headline">Ficha del Estudiante</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="outline" className="text-[10px] uppercase font-bold text-slate-400">Expediente Oficial</Badge>
+              <span className="text-xs text-muted-foreground">• EduControl 2024</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="shadow-sm" asChild>
+            <Link href={`/incidents/new?studentId=${student.id}`}>
+              <Plus className="mr-2 h-4 w-4" /> Nueva Incidencia
+            </Link>
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Left: Profile Info */}
+      <div className="grid gap-8 md:grid-cols-3">
+        {/* Left: Profile Info Card */}
         <div className="space-y-6">
-          <Card className="border-none shadow-md overflow-hidden bg-white">
-            <div className="h-24 bg-gradient-to-r from-primary to-primary/80" />
-            <CardContent className="-mt-12 text-center pb-8">
-              <Avatar className="h-24 w-24 mx-auto border-4 border-white shadow-lg mb-4">
-                <AvatarImage src={`https://picsum.photos/seed/${student.id}/200`} />
-                <AvatarFallback className="text-2xl bg-slate-100">{student.nombre.charAt(0)}</AvatarFallback>
+          <Card className="border-none shadow-lg overflow-hidden bg-white">
+            <div className="h-32 bg-gradient-to-br from-primary via-primary/90 to-primary/80" />
+            <CardContent className="-mt-16 text-center pb-8 px-6">
+              <Avatar className="h-32 w-32 mx-auto border-4 border-white shadow-xl mb-6 ring-4 ring-primary/5">
+                <AvatarImage src={`https://picsum.photos/seed/${student.id}/400`} />
+                <AvatarFallback className="text-3xl bg-slate-100 font-bold text-primary">{student.nombre.charAt(0)}</AvatarFallback>
               </Avatar>
-              <h3 className="text-xl font-bold text-slate-900">{student.nombre} {student.apellido}</h3>
-              <p className="text-sm font-medium text-primary mb-4">{student.grado} - {student.seccion}</p>
-              <Badge className={
-                student.estado === 'Activo' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 
-                student.estado === 'Suspendido' ? 'bg-red-100 text-red-700 border-red-200' :
-                'bg-slate-100 text-slate-700'
-              }>
-                {student.estado}
+              <h3 className="text-2xl font-black text-slate-900 leading-tight uppercase tracking-tight">{student.nombre} {student.apellido}</h3>
+              <p className="text-primary font-bold mt-1 mb-4">{student.grado} Grado - Sección {student.seccion}</p>
+              
+              <Badge className={cn(
+                "px-4 py-1.5 rounded-full text-xs font-bold shadow-sm border",
+                student.estado === 'Activo' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                student.estado === 'Suspendido' ? 'bg-red-50 text-red-700 border-red-100' :
+                'bg-slate-50 text-slate-600 border-slate-200'
+              )}>
+                {student.estado?.toUpperCase()}
               </Badge>
             </CardContent>
-            <div className="border-t px-6 py-6 space-y-4">
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                <div className="p-2 bg-slate-50 rounded-lg">
-                  <Calendar size={16} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-400">Nacimiento</p>
-                  <span className="font-medium">{formatSafeDate(student.fechaNacimiento)}</span>
+            
+            <div className="border-t bg-slate-50/50 px-6 py-8 space-y-6">
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest border-b pb-2">Información de Identidad</p>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="p-2.5 bg-white rounded-xl shadow-sm border">
+                      <Calendar size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Nacimiento</p>
+                      <span className="font-semibold text-slate-700">{formatSafeDate(student.fechaNacimiento)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="p-2.5 bg-white rounded-xl shadow-sm border">
+                      <User size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-slate-400">ID Institucional</p>
+                      <span className="font-mono text-xs text-slate-600 font-bold">{student.id}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                <div className="p-2 bg-slate-50 rounded-lg">
-                  <User size={16} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-400">ID Estudiante</p>
-                  <span className="font-mono text-xs">{student.id}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                <div className="p-2 bg-slate-50 rounded-lg">
-                  <BookOpen size={16} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-400">Nivel Académico</p>
-                  <span className="font-medium">Regular</span>
+
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest border-b pb-2">Contacto y Residencia</p>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="p-2.5 bg-white rounded-xl shadow-sm border">
+                      <Phone size={18} className="text-slate-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Teléfono Apoderado</p>
+                      <span className="text-xs italic text-muted-foreground">Reservado (Solo Directivos)</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="p-2.5 bg-white rounded-xl shadow-sm border">
+                      <MapPin size={18} className="text-slate-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Dirección</p>
+                      <span className="text-xs italic text-muted-foreground">Datos Protegidos</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </Card>
 
-          <Card className="border-none shadow-sm bg-white">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-md flex items-center gap-2">
-                <User size={18} className="text-primary" />
-                Datos de Apoderado
+          <Card className="border-none shadow-md bg-white overflow-hidden">
+            <CardHeader className="bg-slate-50/80 border-b pb-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <ShieldAlert size={18} className="text-red-500" />
+                Alertas Activas
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                <p className="text-xs text-muted-foreground text-center">
-                  Información de contacto protegida. Solo accesible por personal directivo o psicología.
-                </p>
-              </div>
+            <CardContent className="pt-6">
+              {incidents && incidents.length > 5 ? (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-center">
+                  <p className="text-xs font-bold text-red-700 uppercase mb-1">Alerta Roja</p>
+                  <p className="text-xs text-red-600">Este alumno ha superado el umbral de incidencias permitido.</p>
+                </div>
+              ) : (
+                <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-xl text-center">
+                  <p className="text-xs font-bold text-emerald-700 uppercase mb-1">Sin Alertas Críticas</p>
+                  <p className="text-xs text-emerald-600 italic">Comportamiento regular registrado.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Right: AI Analysis & Incidents */}
-        <div className="md:col-span-2 space-y-6">
+        {/* Right: AI Analysis & Disciplinary History */}
+        <div className="md:col-span-2 space-y-8">
           <IncidentAiSummary student={student} incidents={incidents || []} />
 
-          <Card className="border-none shadow-md bg-white">
-            <CardHeader className="flex flex-row items-center justify-between pb-4 border-b">
+          <Card className="border-none shadow-xl bg-white overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-6 border-b px-8 bg-white/50">
               <div className="space-y-1">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <History size={20} className="text-primary" />
+                <CardTitle className="text-xl font-black text-slate-800 flex items-center gap-2 uppercase tracking-tight">
+                  <History size={24} className="text-primary" />
                   Historial Disciplinario
                 </CardTitle>
-                <CardDescription>Registro cronológico de todas las incidencias.</CardDescription>
+                <CardDescription className="font-medium">Cronología de sucesos y reportes académicos.</CardDescription>
               </div>
-              <Button size="sm" className="bg-primary shadow-sm" asChild>
-                <Link href={`/incidents/new?studentId=${student.id}`}>
-                  <Plus className="mr-2 h-4 w-4" /> Registrar Nuevo
-                </Link>
-              </Button>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-8 px-8">
               {isIncidentsLoading ? (
                 <div className="flex justify-center py-20">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
                 </div>
               ) : incidents && incidents.length > 0 ? (
-                <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-slate-100">
+                <div className="space-y-10 relative before:absolute before:inset-0 before:ml-5 before:h-full before:w-1 before:bg-slate-100/80 before:rounded-full">
                   {incidents.map((inc) => (
-                    <div key={inc.id} className="relative pl-12">
-                      <div className="absolute left-3 top-0 w-4 h-4 rounded-full bg-white border-4 border-primary shadow-sm z-10" />
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
-                        <div>
-                          <span className="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/5 px-2 py-0.5 rounded">
-                            {inc.tipo}
-                          </span>
-                          <h4 className="text-sm font-bold text-slate-900 mt-1">
-                            {formatSafeDate(inc.fecha, "PPP")}
+                    <div key={inc.id} className="relative pl-14 animate-in slide-in-from-left-4 fade-in duration-500">
+                      <div className="absolute left-2.5 top-1 w-5 h-5 rounded-full bg-white border-4 border-primary shadow-md z-10 ring-4 ring-white" />
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 px-2.5 py-1 rounded-md border border-primary/10">
+                              {inc.tipo}
+                            </span>
+                            {inc.severidad === 'alto' && <Badge className="bg-red-500 animate-pulse h-2 w-2 p-0 rounded-full" />}
+                          </div>
+                          <h4 className="text-lg font-black text-slate-900 tracking-tight">
+                            {formatSafeDate(inc.fecha, "PPPP")}
                           </h4>
                         </div>
-                        <Badge variant="outline" className={
-                          inc.severidad === 'alto' ? 'bg-red-50 text-red-600 border-red-100' :
-                          inc.severidad === 'medio' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                          'bg-emerald-50 text-emerald-600 border-emerald-100'
-                        }>
-                          Gravedad {inc.severidad?.toUpperCase()}
+                        <Badge variant="outline" className={cn(
+                          "px-4 py-1.5 font-black uppercase text-[10px] tracking-widest shadow-sm",
+                          getSeverityColor(inc.severidad)
+                        )}>
+                          Gravedad {inc.severidad}
                         </Badge>
                       </div>
-                      <p className="text-sm text-slate-600 leading-relaxed mb-4 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
-                        {inc.descripcion}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-6">
-                        <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                          <User size={14} className="text-slate-300" />
-                          Registrado por: <span className="text-slate-600">{inc.registradoPor}</span>
-                        </div>
-                        {inc.evidenceUrls && inc.evidenceUrls.length > 0 && (
-                          <div className="flex gap-2">
-                            {inc.evidenceUrls.map((url, idx) => (
-                              <div key={idx} className="h-10 w-10 rounded-lg border shadow-sm overflow-hidden cursor-zoom-in hover:scale-105 transition-transform">
-                                <img src={url} className="w-full h-full object-cover" alt="Evidencia" />
-                              </div>
-                            ))}
+
+                      <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 shadow-inner group hover:bg-white hover:shadow-md transition-all duration-300">
+                        <p className="text-sm text-slate-700 leading-relaxed font-medium mb-4 italic">
+                          "{inc.descripcion}"
+                        </p>
+                        
+                        <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-4 border-slate-200/50">
+                          <div className="flex items-center gap-2.5 text-[11px] text-slate-500 font-bold bg-white px-3 py-1.5 rounded-lg border shadow-sm">
+                            <User size={14} className="text-primary/60" />
+                            Registrado por: <span className="text-slate-900">{inc.registradoPor}</span>
                           </div>
-                        )}
+                          
+                          {inc.evidenceUrls && inc.evidenceUrls.length > 0 && (
+                            <div className="flex gap-2">
+                              {inc.evidenceUrls.map((url, idx) => (
+                                <div key={idx} className="h-12 w-12 rounded-xl border-2 border-white shadow-md overflow-hidden cursor-zoom-in hover:scale-125 transition-transform duration-300">
+                                  <img src={url} className="w-full h-full object-cover" alt="Evidencia" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-20 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-                  <History size={40} className="mx-auto text-slate-200 mb-4" />
-                  <h3 className="text-slate-400 font-semibold">Sin historial previo</h3>
-                  <p className="text-xs text-slate-400 mt-1">No se han registrado incidencias para este estudiante.</p>
+                <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                  <History size={60} className="mx-auto text-slate-200 mb-6" />
+                  <h3 className="text-xl font-bold text-slate-400">Sin historial registrado</h3>
+                  <p className="text-sm text-slate-400 mt-2 max-w-xs mx-auto italic">Este estudiante no presenta reportes disciplinarios ni observaciones académicas hasta la fecha.</p>
                 </div>
               )}
             </CardContent>
