@@ -10,33 +10,54 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useCollection, useMemoFirebase, useFirestore, useUser } from "@/firebase"
-import { collection, query, orderBy, limit } from "firebase/firestore"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Alerta } from "@/types"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
 
 export function NotificationsNav() {
-  const db = useFirestore()
-  const { user } = useUser()
+  const { user, loading: isUserLoading } = useSupabaseAuth()
   const [isMounted, setIsMounted] = useState(false)
+  const [alerts, setAlerts] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
   
-  const alertsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(
-      collection(db, "alerts"),
-      orderBy("fecha", "desc"),
-      limit(5)
-    )
-  }, [db, user])
+  useEffect(() => {
+    let mounted = true;
+    async function loadAlerts() {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('alertas')
+          .select('*')
+          .order('fecha', { ascending: false })
+          .limit(5);
+        
+        if (error) throw error;
+        
+        if (data && mounted) {
+          setAlerts(data);
+        }
+      } catch (err) {
+        console.error("Error fetching alerts", err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+    
+    if (!isUserLoading) {
+      loadAlerts();
+    }
+    
+    return () => { mounted = false; };
+  }, [user, isUserLoading]);
 
-  const { data: alerts, isLoading } = useCollection<Alerta>(alertsQuery)
   const unreadCount = alerts?.filter(a => !a.leido).length || 0
 
   const getAlertIcon = (nivel: string) => {
@@ -88,7 +109,7 @@ export function NotificationsNav() {
               {alerts.map((alert) => (
                 <Link 
                   key={alert.id} 
-                  href={`/students/${alert.alumnoId}`}
+                  href={user?.role === 'Docente' ? `/alerts` : `/students/${alert.alumno_id || alert.alumnoId}`}
                   className={cn(
                     "flex gap-3 p-4 border-b hover:bg-slate-50 transition-colors last:border-0",
                     !alert.leido && "bg-primary/5"
@@ -98,7 +119,7 @@ export function NotificationsNav() {
                     {getAlertIcon(alert.nivel)}
                   </div>
                   <div className="space-y-1 overflow-hidden">
-                    <p className="text-xs font-bold text-slate-900 truncate">{alert.alumnoNombre}</p>
+                    <p className="text-xs font-bold text-slate-900 truncate">{alert.alumno_nombre || alert.alumnoNombre}</p>
                     <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
                       {alert.mensaje}
                     </p>

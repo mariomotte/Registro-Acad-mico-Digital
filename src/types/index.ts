@@ -6,6 +6,7 @@ export interface Usuario {
   firstName: string;
   lastName: string;
   role: UserRole;
+  estado?: 'Activo' | 'Inactivo';
   createdAt?: any;
 }
 
@@ -29,6 +30,8 @@ export interface Incidencia {
   id: string;
   alumnoId: string;
   alumnoNombre: string;
+  alumnoGrado?: string;
+  alumnoSeccion?: string;
   tipo: IncidentType;
   descripcion: string;
   severidad: Severity;

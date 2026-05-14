@@ -1,17 +1,85 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Brain, Users, Calendar, ArrowRight, MessageSquare, Sparkles } from "lucide-react"
-import { MOCK_STUDENTS, MOCK_ALERTS, MOCK_SESSIONS } from "@/lib/mock-data"
+import { Brain, Users, Calendar, ArrowRight, MessageSquare, Sparkles, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
+import { Incidencia } from "@/types"
 
 export default function PsychologyDashboard() {
-  const criticalStudents = MOCK_ALERTS.filter(a => a.nivel === 'rojo');
+  const { user, loading: isUserLoading } = useSupabaseAuth()
+  const [criticalIncidents, setCriticalIncidents] = useState<Incidencia[]>([])
+  const [sessions, setSessions] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadData() {
+      if (!user) return;
+      try {
+        const [incidentsRes, sessionsRes] = await Promise.all([
+          supabase.from('incidencias').select('*').eq('severidad', 'alto').order('fecha', { ascending: false }),
+          supabase.from('sesiones_psicologicas').select('*').order('fecha', { ascending: false }).limit(5)
+        ]);
+        
+        if (incidentsRes.error) throw incidentsRes.error;
+        if (sessionsRes.error) throw sessionsRes.error;
+        
+        if (mounted) {
+          setCriticalIncidents(incidentsRes.data.map((i: any) => ({
+            id: i.id,
+            alumnoId: i.alumno_id,
+            alumnoNombre: i.alumno_nombre,
+            alumnoGrado: i.alumno_grado,
+            alumnoSeccion: i.alumno_seccion,
+            tipo: i.tipo,
+            descripcion: i.descripcion,
+            severidad: i.severidad,
+            fecha: i.fecha,
+            registradoPor: i.registrado_por
+          })));
+
+          setSessions(sessionsRes.data);
+        }
+      } catch (err) {
+        console.error("Error fetching psychology data", err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+    
+    if (!isUserLoading) {
+      loadData();
+    }
+    
+    return () => { mounted = false; };
+  }, [user, isUserLoading]);
+
+  const formatFecha = (fechaStr: string) => {
+    try {
+      if (!fechaStr) return "...";
+      const d = parseISO(fechaStr);
+      if (isNaN(d.getTime())) return fechaStr;
+      return format(d, "dd MMM, yyyy", { locale: es });
+    } catch {
+      return fechaStr;
+    }
+  }
   
+  if (isUserLoading || isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -33,23 +101,24 @@ export default function PsychologyDashboard() {
               <Users size={20} className="text-red-500" />
               Estudiantes Derivados (Casos Críticos)
             </CardTitle>
-            <CardDescription>Estudiantes con alerta roja que requieren atención inmediata.</CardDescription>
+            <CardDescription>Estudiantes con incidencias de seguridad alta que requieren atención inmediata.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {criticalStudents.map((alert) => {
-              const student = MOCK_STUDENTS.find(s => s.id === alert.alumnoId);
+            {criticalIncidents.length === 0 ? (
+               <p className="text-sm text-muted-foreground">No hay casos críticos actualmente.</p>
+            ) : criticalIncidents.map((incident) => {
               return (
-                <div key={alert.id} className="flex items-center justify-between p-4 border rounded-xl bg-red-50/30 border-red-100">
+                <div key={incident.id} className="flex items-center justify-between p-4 border rounded-xl bg-red-50/30 border-red-100">
                   <div className="flex flex-col">
-                    <span className="font-bold text-slate-800">{alert.alumnoNombre}</span>
-                    <span className="text-xs text-slate-500">{student?.grado} {student?.seccion} • {alert.tipo}</span>
+                    <span className="font-bold text-slate-800">{incident.alumnoNombre}</span>
+                    <span className="text-xs text-slate-500">{incident.alumnoGrado} {incident.alumnoSeccion} • {incident.tipo}</span>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" asChild>
-                      <Link href={`/students/${alert.alumnoId}`}>Ver Ficha</Link>
+                      <Link href={`/students/${incident.alumnoId}`}>Ver Ficha</Link>
                     </Button>
                     <Button size="sm" className="bg-accent" asChild>
-                      <Link href={`/psychology/sessions/new?studentId=${alert.alumnoId}`}>
+                      <Link href={`/psychology/sessions/new?studentId=${incident.alumnoId}`}>
                         <MessageSquare size={14} className="mr-2" /> Iniciar Sesión
                       </Link>
                     </Button>
@@ -68,11 +137,13 @@ export default function PsychologyDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {MOCK_SESSIONS.map((session) => (
+            {sessions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No hay sesiones registradas.</p>
+            ) : sessions.map((session) => (
               <div key={session.id} className="p-3 border rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
                 <div className="flex justify-between items-start mb-1">
                   <span className="font-semibold text-sm">
-                    {MOCK_STUDENTS.find(s => s.id === session.alumnoId)?.nombre}
+                    {session.alumno_nombre}
                   </span>
                   <Badge variant="outline" className="text-[10px]">
                     {session.clasificacion}
@@ -80,7 +151,7 @@ export default function PsychologyDashboard() {
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-1">{session.motivo}</p>
                 <div className="mt-2 text-[10px] text-slate-400">
-                  {format(new Date(session.fecha), "dd MMM, yyyy", { locale: es })}
+                  {formatFecha(session.fecha)}
                 </div>
               </div>
             ))}

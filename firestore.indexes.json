@@ -1,0 +1,19 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "incidences",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "alumnoId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fecha",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -1,66 +1,95 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, ClipboardList, AlertTriangle, TrendingUp, Loader2 } from "lucide-react"
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, query, where } from "firebase/firestore"
-import { Alumno, Incidencia, Alerta } from "@/types"
+import { Users, ClipboardList, AlertTriangle, Clock, Loader2, UserX } from "lucide-react"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
 
 export function StatCards() {
-  const db = useFirestore()
-  const { user, isUserLoading } = useUser()
+  const { user, loading: isUserLoading } = useSupabaseAuth()
+  const [counts, setCounts] = useState({
+    alertasActivas: 0,
+    incidenciasTotales: 0,
+    faltas: 0,
+    tardanzas: 0
+  })
+  const [isLoading, setIsLoading] = useState(true)
 
-  const studentsQuery = useMemoFirebase(() => {
-    if (!user || isUserLoading) return null;
-    return query(collection(db, "students"))
-  }, [db, user, isUserLoading])
-  
-  const { data: students, isLoading: loadingStudents } = useCollection<Alumno>(studentsQuery)
+  useEffect(() => {
+    let mounted = true;
+    async function fetchCounts() {
+      if (!user) return;
+      try {
+        let incidenciasBaseQuery = supabase.from('incidencias').select('*', { count: 'exact', head: true });
+        let faltasQuery = supabase.from('incidencias').select('*', { count: 'exact', head: true }).eq('tipo', 'Inasistencia');
+        let tardanzasQuery = supabase.from('incidencias').select('*', { count: 'exact', head: true }).eq('tipo', 'Tardanza');
 
-  const incidentsQuery = useMemoFirebase(() => {
-    if (!user || isUserLoading) return null;
-    return query(collection(db, "incidences"))
-  }, [db, user, isUserLoading])
-  
-  const { data: incidents, isLoading: loadingIncidents } = useCollection<Incidencia>(incidentsQuery)
+        if (user.role === 'Docente') {
+          incidenciasBaseQuery = incidenciasBaseQuery.eq('registrador_user_id', user.id);
+          faltasQuery = faltasQuery.eq('registrador_user_id', user.id);
+          tardanzasQuery = tardanzasQuery.eq('registrador_user_id', user.id);
+        }
 
-  const alertsQuery = useMemoFirebase(() => {
-    if (!user || isUserLoading) return null;
-    return query(collection(db, "alerts"), where("leido", "==", false))
-  }, [db, user, isUserLoading])
-  
-  const { data: alerts, isLoading: loadingAlerts } = useCollection<Alerta>(alertsQuery)
+        const [alertsRes, incidentsRes, faltasRes, tardanzasRes] = await Promise.all([
+          supabase.from('alertas').select('*', { count: 'exact', head: true }).eq('leido', false),
+          incidenciasBaseQuery,
+          faltasQuery,
+          tardanzasQuery
+        ]);
+
+        if (mounted) {
+          setCounts({
+            alertasActivas: alertsRes.count || 0,
+            incidenciasTotales: incidentsRes.count || 0,
+            faltas: faltasRes.count || 0,
+            tardanzas: tardanzasRes.count || 0
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching stats counts", err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    if (!isUserLoading) {
+      fetchCounts();
+    }
+
+    return () => { mounted = false; };
+  }, [user, isUserLoading]);
 
   const stats = [
     {
-      title: "Alumnos Totales",
-      value: loadingStudents ? "..." : (students?.length || 0).toString(),
-      description: "Población estudiantil real",
-      icon: Users,
+      title: "Alumnos en Alerta",
+      value: isLoading ? "..." : counts.alertasActivas.toString(),
+      description: "Casos activos que requieren atención",
+      icon: AlertTriangle,
+      color: "text-red-600",
+      bg: "bg-red-100",
+    },
+    {
+      title: "Incidencias Registradas",
+      value: isLoading ? "..." : counts.incidenciasTotales.toString(),
+      description: "Histórico total de reportes",
+      icon: ClipboardList,
       color: "text-blue-600",
       bg: "bg-blue-100",
     },
     {
-      title: "Incidencias Totales",
-      value: loadingIncidents ? "..." : (incidents?.length || 0).toString(),
-      description: "Registros históricos",
-      icon: ClipboardList,
+      title: "Faltas (Inasistencias)",
+      value: isLoading ? "..." : counts.faltas.toString(),
+      description: "Inasistencias reportadas",
+      icon: UserX,
       color: "text-amber-600",
       bg: "bg-amber-100",
     },
     {
-      title: "Alertas Activas",
-      value: loadingAlerts ? "..." : (alerts?.length || 0).toString(),
-      description: "Casos sin resolver",
-      icon: AlertTriangle,
-      color: "text-destructive",
-      bg: "bg-destructive/10",
-    },
-    {
-      title: "Tasa de Asistencia",
-      value: "94%",
-      description: "Métrica del sistema",
-      icon: TrendingUp,
+      title: "Tardanzas",
+      value: isLoading ? "..." : counts.tardanzas.toString(),
+      description: "Llegadas tarde registradas",
+      icon: Clock,
       color: "text-emerald-600",
       bg: "bg-emerald-100",
     },
@@ -88,4 +117,4 @@ export function StatCards() {
       ))}
     </div>
   )
-}
+}

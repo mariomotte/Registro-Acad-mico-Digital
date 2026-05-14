@@ -11,23 +11,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useUser, useAuth, useDoc, useFirestore, useMemoFirebase } from "@/firebase"
-import { signOut } from "firebase/auth"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
-import { doc } from "firebase/firestore"
 import Link from "next/link"
 
 export function UserNav() {
-  const { user } = useUser()
-  const auth = useAuth()
-  const db = useFirestore()
+  const { user } = useSupabaseAuth()
   const router = useRouter()
 
-  const userDocRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user])
-  const { data: profile } = useDoc(userDocRef)
-
   const handleSignOut = async () => {
-    await signOut(auth)
+    await supabase.auth.signOut()
     router.push("/login")
   }
 
@@ -38,15 +32,15 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-primary/10">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={`https://picsum.photos/seed/${user.uid}/200`} alt={user.displayName || ""} />
-            <AvatarFallback>{(user.displayName || "U").charAt(0)}</AvatarFallback>
+            <AvatarImage src={`https://picsum.photos/seed/${user.id}/200`} alt={`${user.firstName} ${user.lastName}`} />
+            <AvatarFallback>{(user.firstName || "U").charAt(0)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-semibold leading-none">{user.displayName || "Usuario"}</p>
+            <p className="text-sm font-semibold leading-none">{`${user.firstName} ${user.lastName}`.trim() || "Usuario"}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>
@@ -60,7 +54,7 @@ export function UserNav() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem className="cursor-default">
-            Rol: <span className="ml-2 font-bold text-primary">{profile?.role || "Cargando..."}</span>
+            Rol: <span className="ml-2 font-bold text-primary">{user.role || "Cargando..."}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

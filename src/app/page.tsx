@@ -3,11 +3,11 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useUser } from "@/firebase"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
 import { Loader2 } from "lucide-react"
 
 export default function Home() {
-  const { user, isUserLoading } = useUser()
+  const { user, loading: isUserLoading } = useSupabaseAuth()
   const router = useRouter()
 
   useEffect(() => {

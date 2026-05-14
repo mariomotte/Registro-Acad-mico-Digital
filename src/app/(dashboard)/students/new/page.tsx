@@ -3,8 +3,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useFirestore, useUser, addDocumentNonBlocking } from "@/firebase"
-import { collection, serverTimestamp } from "firebase/firestore"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,8 +22,7 @@ import { useToast } from "@/hooks/use-toast"
 export default function NewStudentPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const db = useFirestore()
-  const { user } = useUser()
+  const { user } = useSupabaseAuth()
 
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -59,12 +58,17 @@ export default function NewStudentPage() {
 
     try {
       const studentData = {
-        ...formData,
-        createdAt: serverTimestamp(),
-        createdBy: user.uid,
+        nombre: formData.nombre,
+        apellido: formData.apellido,
+        grado: formData.grado,
+        seccion: formData.seccion,
+        fecha_nacimiento: formData.fechaNacimiento,
+        estado: formData.estado,
       }
 
-      addDocumentNonBlocking(collection(db, "students"), studentData)
+      const { error } = await supabase.from('alumnos').insert([studentData])
+      
+      if (error) throw error;
       
       toast({
         title: "Registro exitoso",
@@ -72,6 +76,7 @@ export default function NewStudentPage() {
       })
       router.push("/students")
     } catch (error) {
+      console.error(error)
       toast({
         variant: "destructive",
         title: "Error al guardar",

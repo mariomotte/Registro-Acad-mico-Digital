@@ -1,8 +1,8 @@
-
 "use client"
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { 
   LayoutDashboard, 
@@ -10,8 +10,8 @@ import {
   ClipboardList, 
   Bell, 
   LogOut,
-  GraduationCap,
-  Brain
+  Brain,
+  ShieldCheck
 } from "lucide-react"
 
 import {
@@ -25,20 +25,14 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
-import { signOut } from "firebase/auth"
-import { doc } from "firebase/firestore"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
 
 export function AppSidebar() {
   const pathname = usePathname()
   const { state } = useSidebar()
-  const auth = useAuth()
-  const { user } = useUser()
-  const db = useFirestore()
+  const { user } = useSupabaseAuth()
   const router = useRouter()
-
-  const userDocRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user])
-  const { data: profile } = useDoc(userDocRef)
 
   const menuItems = [
     { name: "Panel de Control", icon: LayoutDashboard, path: "/dashboard" },
@@ -47,14 +41,20 @@ export function AppSidebar() {
     { name: "Alertas", icon: Bell, path: "/alerts" },
   ]
 
-  // Add psychology module if role is Psicólogo, Director or Admin
-  const canSeePsychology = profile?.role === 'Psicólogo' || profile?.role === 'Director' || profile?.role === 'Administrador';
+  // Add psychology module if role is Psicólogo, Director or Superusuario
+  const canSeePsychology = user?.role === 'Psicólogo' || user?.role === 'Director' || user?.role === 'Superusuario';
   if (canSeePsychology) {
     menuItems.push({ name: "Psicopedagógico", icon: Brain, path: "/psychology" });
   }
 
+  // Add access and roles management if role is Superusuario or Director
+  const canSeeUsers = user?.role === 'Superusuario' || user?.role === 'Director';
+  if (canSeeUsers) {
+    menuItems.push({ name: "Accesos y Roles", icon: ShieldCheck, path: "/users" });
+  }
+
   const handleSignOut = async () => {
-    await signOut(auth)
+    await supabase.auth.signOut()
     router.push("/login")
   }
 
@@ -62,8 +62,14 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="py-6">
         <div className="flex items-center gap-3 px-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white">
-            <GraduationCap size={24} />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-transparent">
+            <Image 
+              src="/logo.png" 
+              alt="Logo A.G.G" 
+              width={48} 
+              height={48} 
+              className="object-contain"
+            />
           </div>
           {state === "expanded" && (
             <div className="flex flex-col">

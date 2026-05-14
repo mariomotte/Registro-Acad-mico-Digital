@@ -11,9 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, query, orderBy, limit } from "firebase/firestore"
-import { format } from "date-fns"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
+import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { Incidencia } from "@/types"
 import { Loader2 } from "lucide-react"
@@ -25,22 +25,67 @@ const severityColors = {
 }
 
 export function RecentIncidents() {
-  const [isMounted, setIsMounted] = useState(false)
-  const db = useFirestore()
-  const { user } = useUser()
+  const { user, loading: isUserLoading } = useSupabaseAuth()
+  const [incidences, setIncidences] = useState<Incidencia[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    let mounted = true;
+    async function fetchRecentIncidents() {
+      if (!user) return;
+      try {
+        let query = supabase
+          .from('incidencias')
+          .select('*')
+          .order('fecha', { ascending: false })
+          .limit(5);
 
-  const q = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(db, "incidences"), orderBy("fecha", "desc"), limit(5))
-  }, [db, user])
+        if (user.role === 'Docente') {
+          query = query.eq('registrador_user_id', user.id);
+        }
 
-  const { data: incidences, isLoading } = useCollection<Incidencia>(q)
+        const { data, error } = await query;
 
-  if (isLoading) {
+        if (error) throw error;
+
+        if (mounted) {
+          setIncidences(data.map((i: any) => ({
+            id: i.id,
+            alumnoId: i.alumno_id,
+            alumnoNombre: i.alumno_nombre,
+            tipo: i.tipo,
+            descripcion: i.descripcion,
+            severidad: i.severidad,
+            fecha: i.fecha,
+            registradoPor: i.registrado_por
+          })));
+        }
+      } catch (err) {
+        console.error("Error fetching recent incidents", err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    if (!isUserLoading) {
+      fetchRecentIncidents();
+    }
+
+    return () => { mounted = false; };
+  }, [user, isUserLoading]);
+
+  const formatFecha = (fechaStr: string) => {
+    try {
+      if (!fechaStr) return "...";
+      const d = parseISO(fechaStr);
+      if (isNaN(d.getTime())) return fechaStr;
+      return format(d, "dd MMM, yyyy", { locale: es });
+    } catch {
+      return fechaStr;
+    }
+  }
+
+  if (isUserLoading || isLoading) {
     return (
       <div className="flex justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -67,7 +112,7 @@ export function RecentIncidents() {
                 <TableCell className="font-medium text-primary">{incident.alumnoNombre}</TableCell>
                 <TableCell className="text-slate-600">{incident.tipo}</TableCell>
                 <TableCell className="text-slate-500 text-xs">
-                  {isMounted && incident.fecha ? format(new Date(incident.fecha), "dd MMM, yyyy", { locale: es }) : "..."}
+                  {formatFecha(incident.fecha)}
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className={severityColors[incident.severidad as keyof typeof severityColors] || ""}>

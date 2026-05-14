@@ -21,6 +21,15 @@ import {
   SheetFooter,
   SheetClose
 } from "@/components/ui/sheet"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { 
   Select, 
   SelectContent, 
@@ -30,27 +39,50 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Search, UserPlus, Filter, X, RotateCcw, Loader2 } from "lucide-react"
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, query, orderBy } from "firebase/firestore"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { Alumno } from "@/types"
 
 export default function StudentsPage() {
-  const { user, isUserLoading } = useUser()
-  const db = useFirestore()
+  const { user, loading: isUserLoading } = useSupabaseAuth()
   const [searchTerm, setSearchTerm] = useState("")
+  const [students, setStudents] = useState<Alumno[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [filters, setFilters] = useState({
     grado: "todos",
     seccion: "todos",
     estado: "todos"
   })
   
-  const studentsQuery = useMemoFirebase(() => {
-    if (!user || isUserLoading) return null;
-    return query(collection(db, "students"), orderBy("apellido", "asc"))
-  }, [db, user, isUserLoading])
-
-  const { data: students, isLoading } = useCollection<Alumno>(studentsQuery)
+  useEffect(() => {
+    let mounted = true;
+    async function loadStudents() {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('alumnos')
+          .select('*')
+          .order('apellido', { ascending: true });
+        
+        if (error) throw error;
+        
+        if (data && mounted) {
+          setStudents(data as unknown as Alumno[]); // Ensure type mapping if needed
+        }
+      } catch (err) {
+        console.error("Error fetching students", err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+    
+    if (!isUserLoading) {
+      loadStudents();
+    }
+    
+    return () => { mounted = false; };
+  }, [user, isUserLoading]);
 
   const resetFilters = () => {
     setFilters({
@@ -61,7 +93,7 @@ export default function StudentsPage() {
     setSearchTerm("")
   }
 
-  const filteredStudents = (students || []).filter((student) => {
+  const filteredStudents = students.filter((student) => {
     const matchesSearch = `${student.nombre} ${student.apellido}`.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesGrado = filters.grado === "todos" || student.grado === filters.grado
     const matchesSeccion = filters.seccion === "todos" || student.seccion === filters.seccion
@@ -70,8 +102,8 @@ export default function StudentsPage() {
     return matchesSearch && matchesGrado && matchesSeccion && matchesEstado
   })
 
-  const grados = Array.from(new Set((students || []).map(s => s.grado))).sort()
-  const secciones = Array.from(new Set((students || []).map(s => s.seccion))).sort()
+  const grados = Array.from(new Set(students.map(s => s.grado))).sort()
+  const secciones = Array.from(new Set(students.map(s => s.seccion))).sort()
 
   const hasActiveFilters = searchTerm !== "" || filters.grado !== "todos" || filters.seccion !== "todos" || filters.estado !== "todos"
 
@@ -220,9 +252,46 @@ export default function StudentsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/students/${student.id}`}>Ver Perfil</Link>
-                      </Button>
+                      {user?.role === 'Docente' ? (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm">Ver Alumno</Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Información del Alumno</DialogTitle>
+                              <DialogDescription>
+                                Detalles básicos del alumno.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4 space-y-3 text-sm">
+                              <div>
+                                <span className="font-semibold text-slate-700">Nombre Completo:</span>
+                                <p className="text-slate-600">{student.nombre} {student.apellido}</p>
+                              </div>
+                              <div>
+                                <span className="font-semibold text-slate-700">Grado y Sección:</span>
+                                <p className="text-slate-600">{student.grado} - {student.seccion}</p>
+                              </div>
+                              <div>
+                                <span className="font-semibold text-slate-700">Estado:</span>
+                                <p className="text-slate-600">{student.estado}</p>
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button asChild className="w-full sm:w-auto">
+                                <Link href={`/incidents/new?studentId=${student.id}`}>
+                                  Reportar Incidencia
+                                </Link>
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      ) : (
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/students/${student.id}`}>Ver Perfil</Link>
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

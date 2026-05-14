@@ -21,10 +21,10 @@ import {
   Calendar as CalendarIcon,
   Loader2
 } from "lucide-react"
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, query, orderBy } from "firebase/firestore"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { Incidencia } from "@/types"
 
@@ -35,26 +35,68 @@ const severityColors = {
 }
 
 export default function IncidentsPage() {
-  const { user } = useUser()
-  const db = useFirestore()
+  const { user, loading: isUserLoading } = useSupabaseAuth()
   const [searchTerm, setSearchTerm] = useState("")
-  const [isMounted, setIsMounted] = useState(false)
+  const [incidences, setIncidences] = useState<Incidencia[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    let mounted = true;
+    async function loadIncidents() {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('incidencias')
+          .select('*')
+          .order('fecha', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (data && mounted) {
+          setIncidences(data.map((i: any) => ({
+            id: i.id,
+            alumnoId: i.alumno_id,
+            alumnoNombre: i.alumno_nombre,
+            alumnoGrado: i.alumno_grado,
+            alumnoSeccion: i.alumno_seccion,
+            tipo: i.tipo,
+            descripcion: i.descripcion,
+            severidad: i.severidad,
+            fecha: i.fecha,
+            registradoPor: i.registrado_por,
+            registradorUserId: i.registrador_user_id,
+            evidenceUrls: i.evidence_urls
+          })));
+        }
+      } catch (err) {
+        console.error("Error fetching incidents", err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+    
+    if (!isUserLoading) {
+      loadIncidents();
+    }
+    
+    return () => { mounted = false; };
+  }, [user, isUserLoading]);
 
-  const incidentsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(db, "incidences"), orderBy("fecha", "desc"))
-  }, [db, user])
-
-  const { data: incidences, isLoading } = useCollection<Incidencia>(incidentsQuery)
-
-  const filteredIncidents = (incidences || []).filter(incident => 
+  const filteredIncidents = incidences.filter(incident => 
     incident.alumnoNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     incident.tipo?.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const formatFecha = (fechaStr: string) => {
+    try {
+      if (!fechaStr) return "...";
+      const d = parseISO(fechaStr);
+      if (isNaN(d.getTime())) return fechaStr; // If it's a date string but not ISO
+      return format(d, "dd MMM, yyyy HH:mm", { locale: es });
+    } catch {
+      return fechaStr;
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -118,12 +160,17 @@ export default function IncidentsPage() {
                 filteredIncidents.map((incident) => (
                   <TableRow key={incident.id} className="hover:bg-slate-50/50 transition-colors">
                     <TableCell className="text-xs font-medium text-slate-500">
-                      {isMounted && incident.fecha ? format(new Date(incident.fecha), "dd MMM, yyyy HH:mm", { locale: es }) : "..."}
+                      {formatFecha(incident.fecha)}
                     </TableCell>
                     <TableCell className="font-semibold text-primary">
                       <Link href={`/students/${incident.alumnoId}`} className="hover:underline">
                         {incident.alumnoNombre}
                       </Link>
+                      {incident.alumnoGrado && incident.alumnoSeccion && (
+                        <div className="text-xs text-slate-500 font-normal mt-0.5 flex items-center gap-1">
+                          <span className="bg-slate-100 px-1.5 py-0.5 rounded border">{incident.alumnoGrado} {incident.alumnoSeccion}</span>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-slate-600">{incident.tipo}</span>

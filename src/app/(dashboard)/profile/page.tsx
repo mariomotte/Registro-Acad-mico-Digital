@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
-import { doc, serverTimestamp } from "firebase/firestore"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,16 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { User, Mail, Shield, Calendar, Save, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 
 export default function ProfilePage() {
-  const { user, isUserLoading } = useUser()
-  const db = useFirestore()
+  const { user, loading: isUserLoading } = useSupabaseAuth()
   const { toast } = useToast()
-
-  const userDocRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user])
-  const { data: profile, isLoading: isProfileLoading } = useDoc(userDocRef)
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -29,41 +25,63 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    if (profile) {
+    if (user) {
       setFormData({
-        firstName: profile.firstName || "",
-        lastName: profile.lastName || ""
+        firstName: user.firstName || "",
+        lastName: user.lastName || ""
       })
     }
-  }, [profile])
+  }, [user])
 
-  const handleSave = () => {
-    if (!user || !userDocRef) return
+  const handleSave = async () => {
+    if (!user) return
 
     setIsSaving(true)
     
-    updateDocumentNonBlocking(userDocRef, {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      updatedAt: serverTimestamp()
-    })
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          first_name: formData.firstName,
+          last_name: formData.lastName
+        })
+        .eq('id', user.id)
 
-    // Simulated delay for UI feedback
-    setTimeout(() => {
-      setIsSaving(false)
+      if (error) throw error;
+
       toast({
         title: "Perfil actualizado",
-        description: "Tus cambios han sido guardados correctamente."
+        description: "Tus cambios han sido guardados correctamente. (Actualiza la página para ver los cambios)"
       })
-    }, 800)
+    } catch (error) {
+      console.error("Error updating profile", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo actualizar tu perfil."
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  if (isUserLoading || isProfileLoading) {
+  if (isUserLoading || !user) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
+  }
+
+  const formatFecha = (fechaStr: string | undefined) => {
+    if (!fechaStr) return "N/A";
+    try {
+      const d = parseISO(fechaStr);
+      if (isNaN(d.getTime())) return fechaStr;
+      return format(d, "dd 'de' MMMM, yyyy", { locale: es });
+    } catch {
+      return "N/A";
+    }
   }
 
   return (
@@ -77,15 +95,15 @@ export default function ProfilePage() {
         <Card className="md:col-span-1 border-none shadow-sm">
           <CardContent className="pt-8 text-center space-y-4">
             <Avatar className="h-32 w-32 mx-auto border-4 border-primary/10">
-              <AvatarImage src={`https://picsum.photos/seed/${user?.uid}/400`} />
-              <AvatarFallback className="text-4xl">{(profile?.firstName?.[0] || "U")}</AvatarFallback>
+              <AvatarImage src={`https://picsum.photos/seed/${user.id}/400`} />
+              <AvatarFallback className="text-4xl">{(user.firstName?.[0] || "U")}</AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-xl font-bold text-slate-900">{profile?.firstName} {profile?.lastName}</h3>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <h3 className="text-xl font-bold text-slate-900">{user.firstName} {user.lastName}</h3>
+              <p className="text-sm text-muted-foreground">{user.email}</p>
             </div>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 px-4 py-1">
-              {profile?.role}
+              {user.role}
             </Badge>
           </CardContent>
         </Card>
@@ -127,7 +145,7 @@ export default function ProfilePage() {
               <Label>Correo Electrónico (Solo lectura)</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input value={user?.email || ""} readOnly className="pl-10 bg-slate-50 cursor-not-allowed" />
+                <Input value={user.email || ""} readOnly className="pl-10 bg-slate-50 cursor-not-allowed" />
               </div>
             </div>
 
@@ -136,7 +154,7 @@ export default function ProfilePage() {
                 <Label>Rol Asignado</Label>
                 <div className="relative">
                   <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input value={profile?.role || ""} readOnly className="pl-10 bg-slate-50 cursor-not-allowed" />
+                  <Input value={user.role || ""} readOnly className="pl-10 bg-slate-50 cursor-not-allowed" />
                 </div>
               </div>
               <div className="space-y-2">
@@ -144,7 +162,7 @@ export default function ProfilePage() {
                 <div className="relative">
                   <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    value={profile?.createdAt ? format(new Date(profile.createdAt.toDate?.() || profile.createdAt), "dd 'de' MMMM, yyyy", { locale: es }) : "N/A"} 
+                    value={formatFecha(user.createdAt)} 
                     readOnly 
                     className="pl-10 bg-slate-50 cursor-not-allowed" 
                   />

@@ -1,7 +1,5 @@
 "use client"
 
-import { useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase"
-import { doc, collection, query, where, orderBy } from "firebase/firestore"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -28,27 +26,69 @@ import { es } from "date-fns/locale"
 import { Alumno, Incidencia } from "@/types"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
+import { useSupabaseAuth } from "@/lib/supabase-hooks"
+import { supabase } from "@/lib/supabase"
 
 export default function StudentDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const db = useFirestore()
   const id = params?.id as string
+  const { user, loading: isUserLoading } = useSupabaseAuth()
+
   const [isMounted, setIsMounted] = useState(false)
+  
+  const [student, setStudent] = useState<any>(null)
+  const [isStudentLoading, setIsStudentLoading] = useState(true)
+  const [studentError, setStudentError] = useState<Error | null>(null)
+  
+  const [incidents, setIncidents] = useState<any[]>([])
+  const [isIncidentsLoading, setIsIncidentsLoading] = useState(true)
+  const [incidentsError, setIncidentsError] = useState<Error | null>(null)
 
   useEffect(() => {
+    let mounted = true;
     setIsMounted(true)
-  }, [])
+    
+    async function loadData() {
+      if (!id || !user) return;
+      
+      try {
+        const { data: sData, error: sError } = await supabase
+          .from('alumnos')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (sError) throw sError;
+        if (mounted) setStudent(sData);
+      } catch (err) {
+        if (mounted) setStudentError(err as Error);
+      } finally {
+        if (mounted) setIsStudentLoading(false);
+      }
 
-  const studentRef = useMemoFirebase(() => id ? doc(db, "students", id) : null, [db, id])
-  const { data: student, isLoading: isStudentLoading, error: studentError } = useDoc<Alumno>(studentRef)
-
-  const incidentsQuery = useMemoFirebase(() => {
-    if (!id) return null;
-    return query(collection(db, "incidences"), where("alumnoId", "==", id), orderBy("fecha", "desc"))
-  }, [db, id])
-  
-  const { data: incidents, isLoading: isIncidentsLoading, error: incidentsError } = useCollection<Incidencia>(incidentsQuery)
+      try {
+        const { data: iData, error: iError } = await supabase
+          .from('incidencias')
+          .select('*')
+          .eq('alumno_id', id)
+          .order('fecha', { ascending: false });
+          
+        if (iError) throw iError;
+        if (mounted) setIncidents(iData);
+      } catch (err) {
+        if (mounted) setIncidentsError(err as Error);
+      } finally {
+        if (mounted) setIsIncidentsLoading(false);
+      }
+    }
+    
+    if (!isUserLoading) {
+      loadData();
+    }
+    
+    return () => { mounted = false; };
+  }, [id, user, isUserLoading])
 
   const formatSafeDate = (dateString: string | undefined, pattern: string = "PP") => {
     if (!isMounted || !dateString) return "..."
@@ -130,7 +170,7 @@ export default function StudentDetailPage() {
             <CardContent className="-mt-16 text-center pb-8 px-6">
               <Avatar className="h-32 w-32 mx-auto border-4 border-white shadow-xl mb-6">
                 <AvatarImage src={`https://picsum.photos/seed/${student.id}/400`} />
-                <AvatarFallback className="text-3xl font-bold text-primary">{student.nombre.charAt(0)}</AvatarFallback>
+                <AvatarFallback className="text-3xl font-bold text-primary">{student.nombre?.charAt(0)}</AvatarFallback>
               </Avatar>
               <h3 className="text-2xl font-black text-slate-900 leading-tight uppercase tracking-tight">{student.nombre} {student.apellido}</h3>
               <p className="text-primary font-bold mt-1 mb-4">{student.grado} - {student.seccion}</p>
@@ -152,7 +192,7 @@ export default function StudentDetailPage() {
                     <Calendar size={16} className="text-slate-400" />
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Nacimiento</p>
-                      <span className="font-semibold text-slate-700">{formatSafeDate(student.fechaNacimiento)}</span>
+                      <span className="font-semibold text-slate-700">{formatSafeDate(student.fecha_nacimiento || student.fechaNacimiento)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
@@ -254,12 +294,12 @@ export default function StudentDetailPage() {
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t pt-3 border-slate-200/50">
                           <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
                             <User size={12} className="text-primary/60" />
-                            Reportado por: <span className="text-slate-900">{inc.registradoPor}</span>
+                            Reportado por: <span className="text-slate-900">{inc.registrado_por || inc.registradoPor}</span>
                           </div>
                           
-                          {inc.evidenceUrls && inc.evidenceUrls.length > 0 && (
+                          {(inc.evidence_urls || inc.evidenceUrls) && (inc.evidence_urls || inc.evidenceUrls).length > 0 && (
                             <div className="flex gap-1">
-                              {inc.evidenceUrls.map((url, idx) => (
+                              {(inc.evidence_urls || inc.evidenceUrls).map((url: string, idx: number) => (
                                 <div key={idx} className="h-10 w-10 rounded-lg border-2 border-white shadow-sm overflow-hidden">
                                   <img src={url} className="w-full h-full object-cover" alt="Evidencia" />
                                 </div>
