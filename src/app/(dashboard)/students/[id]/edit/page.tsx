@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { useSupabaseAuth } from "@/lib/supabase-hooks"
 import { supabase } from "@/lib/supabase"
 import { logAudit } from "@/lib/audit"
@@ -16,7 +16,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { UserPlus, Save, ArrowLeft, Loader2 } from "lucide-react"
+import { Edit, Save, ArrowLeft, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -38,19 +38,65 @@ const studentSchema = z.object({
 
 type StudentFormValues = z.infer<typeof studentSchema>
 
-export default function NewStudentPage() {
+export default function EditStudentPage() {
   const router = useRouter()
+  const params = useParams()
+  const { studentId, id } = params
+  const actualId = id || studentId
+  
   const { toast } = useToast()
   const { user } = useSupabaseAuth()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<StudentFormValues>({
-    resolver: zodResolver(studentSchema),
-    defaultValues: {
-      estado: "Activo",
-      nivel: "Primaria"
-    }
+  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<StudentFormValues>({
+    resolver: zodResolver(studentSchema)
   })
+
+  useEffect(() => {
+    let mounted = true
+    async function loadStudent() {
+      if (!actualId) return
+      try {
+        const { data, error } = await supabase
+          .from('alumnos')
+          .select('nombres, apellidos, dni, codigo_estudiante, grado, seccion, nivel, estado, apoderado, telefono, fecha_nacimiento')
+          .eq('id', actualId)
+          .single()
+        
+        if (error) throw error
+        
+        if (data && mounted) {
+          reset({
+            nombres: data.nombres,
+            apellidos: data.apellidos,
+            dni: data.dni,
+            codigo_estudiante: data.codigo_estudiante,
+            grado: data.grado,
+            seccion: data.seccion,
+            nivel: data.nivel,
+            estado: data.estado,
+            apoderado: data.apoderado,
+            telefono: data.telefono,
+            fecha_nacimiento: data.fecha_nacimiento || ""
+          })
+        }
+      } catch (err) {
+        console.error("Error loading student:", err)
+        toast({
+          variant: "destructive",
+          title: "Error al cargar",
+          description: "No se pudo cargar la ficha del alumno."
+        })
+        router.push("/students")
+      } finally {
+        if (mounted) setIsLoading(false)
+      }
+    }
+
+    loadStudent()
+    return () => { mounted = false }
+  }, [actualId, reset, router, toast])
 
   const onSubmit = async (data: StudentFormValues) => {
     if (!user) {
@@ -62,13 +108,13 @@ export default function NewStudentPage() {
       return
     }
 
-    setIsLoading(true)
+    setIsSaving(true)
 
     try {
-      const { data: inserted, error } = await supabase
+      const { error } = await supabase
         .from('alumnos')
-        .insert([data])
-        .select('id')
+        .update(data)
+        .eq('id', actualId)
       
       if (error) {
         if (error.code === '23505') {
@@ -78,37 +124,44 @@ export default function NewStudentPage() {
       }
 
       // Registro de Auditoria
-      const newStudent = inserted?.[0]
       await logAudit({
         userId: user.id,
         userEmail: user.email,
         userName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
         modulo: 'ALUMNOS',
-        accion: 'CREAR_ALUMNO',
-        registroId: newStudent?.id,
-        descripcion: `Registró al alumno ${data.nombres} ${data.apellidos}.`,
+        accion: 'EDITAR_ALUMNO',
+        registroId: actualId as string,
+        descripcion: `Actualizó datos del alumno ${data.nombres} ${data.apellidos}.`,
         datosNuevos: data
       })
       
       toast({
-        title: "Registro exitoso",
-        description: `El alumno ${data.nombres} ${data.apellidos} ha sido registrado correctamente.`,
+        title: "Actualización exitosa",
+        description: `El alumno ${data.nombres} ${data.apellidos} ha sido actualizado correctamente.`,
       })
-      router.push("/students")
+      router.push(`/students/${actualId}`)
     } catch (error: any) {
       console.error(error)
       toast({
         variant: "destructive",
         title: "Error al guardar",
-        description: error.message || "No se pudo registrar al alumno en la base de datos.",
+        description: error.message || "No se pudieron guardar los cambios del alumno.",
       })
     } finally {
-      setIsLoading(false)
+      setIsSaving(false)
     }
   }
 
   const gradosDisponibles = ["1ro", "2do", "3ro", "4to", "5to", "6to", "1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
   const seccionesDisponibles = ["A", "B", "C", "D"]
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -117,8 +170,8 @@ export default function NewStudentPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline">Registrar Nuevo Alumno</h2>
-          <p className="text-muted-foreground">Ingresa los datos del estudiante para incorporarlo al sistema.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline">Editar Ficha del Alumno</h2>
+          <p className="text-muted-foreground">Modifica la información general o cambia el estado del alumno.</p>
         </div>
       </div>
 
@@ -126,10 +179,10 @@ export default function NewStudentPage() {
         <Card className="border-none shadow-md">
           <CardHeader className="bg-slate-50 border-b">
             <CardTitle className="text-lg flex items-center gap-2">
-              <UserPlus size={20} className="text-primary" />
-              Datos del Estudiante
+              <Edit size={20} className="text-primary" />
+              Modificar Datos
             </CardTitle>
-            <CardDescription>Asegúrese de llenar todos los campos obligatorios.</CardDescription>
+            <CardDescription>Asegúrese de que la información sea verídica.</CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
@@ -232,8 +285,8 @@ export default function NewStudentPage() {
                 {errors.fecha_nacimiento && <p className="text-xs text-red-500 font-medium">{errors.fecha_nacimiento.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="estado">Estado Inicial</Label>
-                <Select defaultValue="Activo" onValueChange={(val) => setValue("estado", val as any, { shouldValidate: true })}>
+                <Label htmlFor="estado">Estado del Alumno</Label>
+                <Select onValueChange={(val) => setValue("estado", val as any, { shouldValidate: true })}>
                   <SelectTrigger id="estado">
                     <SelectValue />
                   </SelectTrigger>
@@ -273,13 +326,13 @@ export default function NewStudentPage() {
             <Button variant="outline" type="button" onClick={() => router.back()}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-primary" disabled={isLoading}>
-              {isLoading ? (
+            <Button type="submit" className="bg-primary" disabled={isSaving}>
+              {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              {isLoading ? "Registrando..." : "Confirmar Registro"}
+              {isSaving ? "Guardando..." : "Guardar Cambios"}
             </Button>
           </CardFooter>
         </Card>

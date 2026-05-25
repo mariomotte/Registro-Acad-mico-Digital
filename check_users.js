@@ -10,17 +10,14 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function run() {
-  console.log('Intentando actualizar rol de ebert@gmail.com a Superusuario...');
   const { data, error } = await supabase
     .from('users')
-    .update({ role: 'Superusuario' })
-    .eq('email', 'ebert@gmail.com')
-    .select();
+    .select('id, email, first_name, last_name, role, estado');
 
   if (error) {
-    console.error('Error al actualizar el rol:', error);
+    console.error('Error fetching users:', error);
   } else {
-    console.log('¡Actualización Exitosa! Datos actualizados:', data);
+    console.log('Users in database:', data);
   }
 }
 

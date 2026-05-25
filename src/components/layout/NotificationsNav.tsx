@@ -35,7 +35,7 @@ export function NotificationsNav() {
       try {
         const { data, error } = await supabase
           .from('alertas')
-          .select('*')
+          .select('id, leido, nivel, alumno_id, alumno_nombre, mensaje, fecha')
           .order('fecha', { ascending: false })
           .limit(5);
         
@@ -109,7 +109,7 @@ export function NotificationsNav() {
               {alerts.map((alert) => (
                 <Link 
                   key={alert.id} 
-                  href={user?.role === 'Docente' ? `/alerts` : `/students/${alert.alumno_id || alert.alumnoId}`}
+                  href={user?.role === 'docente' ? `/alerts` : `/students/${alert.alumno_id || alert.alumnoId}`}
                   className={cn(
                     "flex gap-3 p-4 border-b hover:bg-slate-50 transition-colors last:border-0",
                     !alert.leido && "bg-primary/5"

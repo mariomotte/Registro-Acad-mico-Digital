@@ -13,6 +13,7 @@ import { User, Mail, Shield, Calendar, Save, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
+import { getUserAvatar } from "@/lib/avatar"
 
 export default function ProfilePage() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
@@ -87,7 +88,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight text-slate-800 font-headline">Mi Perfil</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-foreground font-headline">Mi Perfil</h2>
         <p className="text-muted-foreground">Gestiona tu información personal y configuración de cuenta.</p>
       </div>
 
@@ -95,11 +96,11 @@ export default function ProfilePage() {
         <Card className="md:col-span-1 border-none shadow-sm">
           <CardContent className="pt-8 text-center space-y-4">
             <Avatar className="h-32 w-32 mx-auto border-4 border-primary/10">
-              <AvatarImage src={`https://picsum.photos/seed/${user.id}/400`} />
+              <AvatarImage src={getUserAvatar(user)} />
               <AvatarFallback className="text-4xl">{(user.firstName?.[0] || "U")}</AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-xl font-bold text-slate-900">{user.firstName} {user.lastName}</h3>
+              <h3 className="text-xl font-bold text-foreground">{user.firstName} {user.lastName}</h3>
               <p className="text-sm text-muted-foreground">{user.email}</p>
             </div>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 px-4 py-1">
@@ -145,7 +146,7 @@ export default function ProfilePage() {
               <Label>Correo Electrónico (Solo lectura)</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input value={user.email || ""} readOnly className="pl-10 bg-slate-50 cursor-not-allowed" />
+                <Input value={user.email || ""} readOnly className="pl-10 bg-muted cursor-not-allowed text-muted-foreground" />
               </div>
             </div>
 
@@ -154,7 +155,7 @@ export default function ProfilePage() {
                 <Label>Rol Asignado</Label>
                 <div className="relative">
                   <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input value={user.role || ""} readOnly className="pl-10 bg-slate-50 cursor-not-allowed" />
+                  <Input value={user.role || ""} readOnly className="pl-10 bg-muted cursor-not-allowed text-muted-foreground" />
                 </div>
               </div>
               <div className="space-y-2">
@@ -164,13 +165,13 @@ export default function ProfilePage() {
                   <Input 
                     value={formatFecha(user.createdAt)} 
                     readOnly 
-                    className="pl-10 bg-slate-50 cursor-not-allowed" 
+                    className="pl-10 bg-muted cursor-not-allowed text-muted-foreground" 
                   />
                 </div>
               </div>
             </div>
           </CardContent>
-          <CardFooter className="border-t bg-slate-50/50 flex justify-end py-4">
+          <CardFooter className="border-t bg-muted/20 flex justify-end py-4">
             <Button onClick={handleSave} disabled={isSaving} className="bg-primary">
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Guardar Cambios

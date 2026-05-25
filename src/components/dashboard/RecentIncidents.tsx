@@ -36,11 +36,11 @@ export function RecentIncidents() {
       try {
         let query = supabase
           .from('incidencias')
-          .select('*')
+          .select('id, alumno_id, alumno_nombre, tipo, descripcion, severidad, fecha, registrado_por')
           .order('fecha', { ascending: false })
           .limit(5);
 
-        if (user.role === 'Docente') {
+        if (user.role === 'docente') {
           query = query.eq('registrador_user_id', user.id);
         }
 

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Bell, AlertTriangle, Clock, Trash2, Phone, ClipboardList, Loader2, Download, Bot } from "lucide-react"
-import { format, parseISO } from "date-fns"
+import { format, parseISO, subDays } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -38,9 +38,10 @@ export default function AlertsPage() {
     async function loadData() {
       if (!user) return;
       try {
+        const ninetyDaysAgo = format(subDays(new Date(), 90), "yyyy-MM-dd");
         const [alertsRes, incidentsRes, studentsRes] = await Promise.all([
-          supabase.from('alertas').select('*').order('fecha', { ascending: false }),
-          supabase.from('incidencias').select('*').order('fecha', { ascending: false }),
+          supabase.from('alertas').select('id, alumno_id, alumno_nombre, tipo, nivel, mensaje, fecha, leido, accion_requerida').order('fecha', { ascending: false }),
+          supabase.from('incidencias').select('id, alumno_id, alumno_nombre, tipo, descripcion, severidad, fecha, registrado_por').gte('fecha', ninetyDaysAgo).order('fecha', { ascending: false }),
           supabase.from('alumnos').select('id, grado, seccion')
         ]);
         
@@ -204,28 +205,28 @@ export default function AlertsPage() {
 
   const getNivelColor = (nivel: string) => {
     switch (nivel?.toLowerCase()) {
-      case 'rojo': return 'border-l-red-500 bg-red-50/50';
-      case 'amarillo': return 'border-l-amber-500 bg-amber-50/50';
-      case 'verde': return 'border-l-emerald-500 bg-emerald-50/50';
-      default: return 'border-l-slate-300';
+      case 'rojo': return 'border-l-red-500 bg-card/40 hover:bg-card/60';
+      case 'amarillo': return 'border-l-amber-500 bg-card/40 hover:bg-card/60';
+      case 'verde': return 'border-l-emerald-500 bg-card/40 hover:bg-card/60';
+      default: return 'border-l-slate-500 bg-card/40';
     }
   }
 
   const getSeverityBadgeVariant = (severidad: string) => {
     switch (severidad?.toLowerCase()) {
-      case 'alto': return 'bg-red-100 text-red-700 border-red-200';
-      case 'medio': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'bajo': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      default: return 'bg-slate-100';
+      case 'alto': return 'bg-red-500/10 text-red-400 border-red-500/20';
+      case 'medio': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'bajo': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      default: return 'bg-white/10 text-slate-350 border-white/5';
     }
   }
 
   const getBadgeVariant = (nivel: string) => {
     switch (nivel?.toLowerCase()) {
-      case 'rojo': return 'bg-red-100 text-red-700 border-red-200';
-      case 'amarillo': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'verde': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      default: return 'bg-slate-100';
+      case 'rojo': return 'bg-red-500/10 text-red-700 border-red-500/20';
+      case 'amarillo': return 'bg-amber-500/10 text-amber-700 border-amber-500/20';
+      case 'verde': return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   }
 
@@ -241,7 +242,7 @@ export default function AlertsPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline flex items-center gap-2">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100 font-headline flex items-center gap-2">
             <Bell className="text-primary" />
             Centro de Alertas y Reportes
           </h2>
@@ -303,97 +304,92 @@ export default function AlertsPage() {
           {alerts.length > 0 ? (
             alerts.map((alert) => (
               <Card key={alert.id} className={cn(
-                "border-none shadow-sm transition-all hover:shadow-md border-l-4",
+                "border border-slate-100 dark:border-white/[0.08] shadow-sm backdrop-blur-md transition-all hover:shadow-md hover:-translate-y-0.5 duration-300 border-l-4 rounded-xl",
                 getNivelColor(alert.nivel),
                 alert.leido && "opacity-60"
               )}>
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     <div className={cn(
-                      "p-3 rounded-full mt-1",
-                      alert.nivel === 'rojo' ? 'bg-red-100 text-red-600' : 
-                      alert.nivel === 'amarillo' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'
+                      "p-3 rounded-xl mt-1 border shadow-sm",
+                      alert.nivel === 'rojo' ? 'bg-red-500/10 text-red-600 border-red-500/20' : 
+                      alert.nivel === 'amarillo' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                     )}>
-                      <AlertTriangle size={24} />
+                      <AlertTriangle size={20} />
                     </div>
                     <div className="flex-1 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-lg text-slate-900">{alert.alumnoNombre}</h3>
-                          <Badge variant="outline" className={cn("text-[10px] uppercase px-2 font-bold", getBadgeVariant(alert.nivel))}>
-                            Gravedad: {alert.nivel}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 tracking-tight leading-none">{alert.alumnoNombre}</h3>
+                          <Badge variant="outline" className={cn("text-[9px] uppercase px-2 font-black tracking-wider rounded-full", getBadgeVariant(alert.nivel))}>
+                            {alert.nivel}
                           </Badge>
                         </div>
-                        <span className="text-sm font-medium text-slate-500 flex items-center gap-1">
-                          <Clock size={14} />
+                        <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                          <Clock size={13} />
                           {formatFecha(alert.fecha, 'full')}
                         </span>
                       </div>
                       
-                      <div className="bg-white/60 p-3 rounded-lg border border-slate-200">
-                        <p className="text-sm font-semibold text-slate-700 mb-1">Motivo / Tipo de Alerta: <span className="font-bold text-slate-900">{alert.tipo}</span></p>
-                        <p className="text-sm text-slate-600">{alert.mensaje}</p>
+                      <div className="bg-slate-50/50 dark:bg-white/[0.02] p-3.5 rounded-xl border border-slate-100 dark:border-white/5">
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Motivo / Tipo de Alerta: <span className="font-black text-slate-700 dark:text-slate-200">{alert.tipo}</span></p>
+                        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 leading-relaxed">{alert.mensaje}</p>
                       </div>
                       
                       {alert.nivel === 'rojo' && alert.accionRequerida && (
-                        <div className="p-3 bg-red-100/80 rounded-md border border-red-200 flex items-center gap-3">
-                          <Phone size={18} className="text-red-700" />
-                          <span className="text-sm text-red-800 font-bold">
+                        <div className="p-3.5 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3">
+                          <Phone size={16} className="text-red-600" />
+                          <span className="text-xs text-red-700 font-extrabold tracking-wide uppercase">
                             ACCIÓN REQUERIDA: {alert.accionRequerida}
                           </span>
                         </div>
                       )}
 
                       {/* Sección Gemini AI Resumen */}
-                      <div className="mt-4 pt-4 border-t border-slate-200/60">
+                      <div className="mt-4 pt-4 border-t border-slate-100">
                         {summaries[alert.alumnoId] ? (
-                          <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-blue-400"></div>
+                          <div className="bg-gradient-to-br from-blue-50/80 to-indigo-50/40 dark:from-blue-950/40 dark:to-indigo-950/20 border border-blue-100/80 dark:border-blue-900/30 rounded-xl p-4 relative overflow-hidden shadow-sm">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
                             <div className="flex items-center gap-2 mb-2">
-                              <Bot size={18} className="text-blue-500" />
-                              <h4 className="font-bold text-blue-900 text-sm">Resumen para el Apoderado</h4>
+                              <Bot size={18} className="text-blue-600 dark:text-blue-400 animate-bounce" />
+                              <h4 className="font-extrabold text-blue-900 dark:text-blue-200 text-xs uppercase tracking-wider">Resumen Gemini AI</h4>
                             </div>
-                            <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">{summaries[alert.alumnoId]}</p>
+                            <p className="text-sm text-blue-800 dark:text-blue-250 whitespace-pre-wrap leading-relaxed font-semibold">{summaries[alert.alumnoId]}</p>
                           </div>
                         ) : (
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                            className="bg-blue-50/80 border-blue-100 text-blue-700 hover:bg-blue-100 hover:border-blue-200 rounded-lg text-xs font-bold py-4"
                             onClick={() => generateSummary(alert.alumnoId, alert.alumnoNombre, alert.mensaje)}
                             disabled={isSummarizing[alert.alumnoId]}
                           >
                             {isSummarizing[alert.alumnoId] ? (
-                              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generando...</>
+                              <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Generando...</>
                             ) : (
-                              <><Bot className="mr-2 h-4 w-4" /> Generar resumen para apoderado</>
+                              <><Bot className="mr-2 h-3.5 w-3.5" /> Generar resumen para apoderado</>
                             )}
                           </Button>
                         )}
                       </div>
 
                       <div className="flex items-center gap-4 mt-2">
-                        {user?.role === 'Docente' ? (
-                          <Button variant="link" size="sm" className="h-auto p-0 text-primary font-semibold" asChild>
+                        {user?.role === 'docente' ? (
+                          <Button variant="link" size="sm" className="h-auto p-0 text-primary font-bold text-xs" asChild>
                             <Link href={`/incidents/new?studentId=${alert.alumnoId}`}>Reportar Incidencia</Link>
                           </Button>
                         ) : (
-                          <Button variant="link" size="sm" className="h-auto p-0 text-primary font-semibold" asChild>
+                          <Button variant="link" size="sm" className="h-auto p-0 text-primary font-bold text-xs" asChild>
                             <Link href={`/students/${alert.alumnoId}`}>Ver Ficha del Alumno</Link>
                           </Button>
                         )}
-                        {alert.nivel === 'rojo' && user?.role !== 'Docente' && (
-                          <Button variant="link" size="sm" className="h-auto p-0 text-accent font-semibold" asChild>
-                            <Link href={`/psychology?studentId=${alert.alumnoId}`}>Derivar a Psicología</Link>
-                          </Button>
-                        )}
                         {!alert.leido && (
-                          <Button variant="ghost" size="sm" className="h-auto p-0 text-slate-500" onClick={() => markAsRead(alert.id)}>
+                          <Button variant="ghost" size="sm" className="h-auto p-0 text-slate-500 font-semibold text-xs hover:bg-transparent hover:text-slate-800" onClick={() => markAsRead(alert.id)}>
                             Marcar como Leída
                           </Button>
                         )}
-                        <Button variant="ghost" size="sm" className="h-auto p-0 text-slate-400 hover:text-destructive ml-auto" onClick={() => deleteAlert(alert.id)}>
-                          <Trash2 size={16} /> Eliminar
+                        <Button variant="ghost" size="sm" className="h-auto p-0 text-slate-400 hover:bg-transparent hover:text-destructive ml-auto font-semibold text-xs" onClick={() => deleteAlert(alert.id)}>
+                          <Trash2 size={15} className="mr-1" /> Eliminar
                         </Button>
                       </div>
                     </div>
@@ -402,8 +398,8 @@ export default function AlertsPage() {
               </Card>
             ))
           ) : (
-            <div className="text-center py-20 bg-white rounded-lg border-2 border-dashed">
-              <Bell size={48} className="mx-auto text-slate-200 mb-4" />
+            <div className="text-center py-20 bg-card rounded-lg border-2 border-dashed border-white/5">
+              <Bell size={48} className="mx-auto text-slate-700 mb-4" />
               <h3 className="text-lg font-semibold text-slate-400">No hay alertas activas</h3>
             </div>
           )}
@@ -411,43 +407,43 @@ export default function AlertsPage() {
 
         <TabsContent value="reportes" className="space-y-4">
           {(!incidences || incidences.length === 0) ? (
-            <div className="text-center py-20 bg-white rounded-lg border-2 border-dashed">
-              <ClipboardList size={48} className="mx-auto text-slate-200 mb-4" />
+            <div className="text-center py-20 bg-card rounded-lg border-2 border-dashed border-white/5">
+              <ClipboardList size={48} className="mx-auto text-slate-700 mb-4" />
               <h3 className="text-lg font-semibold text-slate-400">No hay reportes guardados en el sistema</h3>
             </div>
           ) : (
             incidences.map((incident) => (
-              <Card key={incident.id} className="border-none shadow-sm transition-all hover:shadow-md border-l-4 border-l-slate-400">
+              <Card key={incident.id} className="border border-slate-100 dark:border-white/[0.08] shadow-2xl backdrop-blur-md transition-all hover:shadow-md hover:-translate-y-0.5 duration-300 border-l-4 border-l-slate-500 rounded-xl bg-card/60 dark:bg-card/40 hover:bg-card/80 dark:hover:bg-card/60">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
-                    <div className="p-2 rounded-full bg-slate-100 text-slate-600 mt-1">
-                      <ClipboardList size={20} />
+                    <div className="p-2.5 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-300 mt-1 shadow-sm">
+                      <ClipboardList size={18} />
                     </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-lg text-slate-900">{incident.alumnoNombre}</h3>
-                          <Badge variant="outline" className={cn("text-[10px] uppercase px-2", getSeverityBadgeVariant(incident.severidad))}>
-                            Nivel: {incident.severidad || 'normal'}
+                    <div className="flex-1 space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 tracking-tight leading-none">{incident.alumnoNombre}</h3>
+                          <Badge variant="outline" className={cn("text-[9px] uppercase px-2 font-black tracking-wider rounded-full", getSeverityBadgeVariant(incident.severidad))}>
+                            {incident.severidad || 'normal'}
                           </Badge>
                         </div>
-                        <span className="text-sm font-medium text-slate-500 flex items-center gap-1">
-                          <Clock size={14} />
+                        <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                          <Clock size={13} />
                           {formatFecha(incident.fecha, 'full')}
                         </span>
                       </div>
-                      <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                        <p className="text-sm text-slate-800 font-bold mb-1">Tipo: {incident.tipo}</p>
-                        <p className="text-sm text-slate-600">{incident.descripcion}</p>
+                      <div className="bg-slate-50/50 dark:bg-white/[0.02] p-3 rounded-xl border border-slate-100 dark:border-white/5">
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Tipo: <span className="font-black text-slate-700 dark:text-slate-200">{incident.tipo}</span></p>
+                        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 leading-relaxed">{incident.descripcion}</p>
                       </div>
 
                       <div className="flex items-center gap-4 mt-2">
-                        {user?.role === 'Docente' ? (
-                          <Button variant="link" size="sm" className="h-auto p-0 text-primary font-semibold" asChild>
+                        {user?.role === 'docente' ? (
+                          <Button variant="link" size="sm" className="h-auto p-0 text-primary font-bold text-xs" asChild>
                             <Link href={`/incidents/new?studentId=${incident.alumnoId}`}>Reportar Nueva Incidencia</Link>
                           </Button>
                         ) : (
-                          <Button variant="link" size="sm" className="h-auto p-0 text-primary font-semibold" asChild>
+                          <Button variant="link" size="sm" className="h-auto p-0 text-primary font-bold text-xs" asChild>
                             <Link href={`/students/${incident.alumnoId}`}>Ver Ficha</Link>
                           </Button>
                         )}

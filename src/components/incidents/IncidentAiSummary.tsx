@@ -20,11 +20,11 @@ export function IncidentAiSummary({ student, incidents }: IncidentAiSummaryProps
     setIsLoading(true)
     try {
       const result = await aiIncidentSummaryAndSuggestions({
-        studentName: `${student.nombre} ${student.apellido}`,
+        studentName: `${student.nombres} ${student.apellidos}`,
         incidents: incidents.map(inc => ({
           type: inc.tipo,
           description: inc.descripcion,
-          severity: inc.severidad,
+          severity: inc.severidad as any,
           date: inc.fecha,
           registeredBy: inc.registradoPor
         }))

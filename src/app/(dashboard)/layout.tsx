@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { UserNav } from "@/components/layout/UserNav"
 import { NotificationsNav } from "@/components/layout/NotificationsNav"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { useSupabaseAuth } from "@/lib/supabase-hooks"
 import { supabase } from "@/lib/supabase"
 import { useRouter, usePathname } from "next/navigation"
@@ -41,22 +42,34 @@ export default function DashboardLayout({
     }
   }, [user, router, toast]);
 
-  // Protección de rutas para el rol Docente
+  // Protección de rutas por rol
   useEffect(() => {
-    if (user?.role === 'Docente') {
-      const isRestricted = 
-        pathname.startsWith('/psychology') || 
-        pathname.startsWith('/users') || 
-        (pathname.startsWith('/students/') && pathname !== '/students');
-
-      if (isRestricted) {
-        toast({
-          title: "Acceso Denegado",
-          description: "No tienes permisos para acceder a este módulo.",
-          variant: "destructive"
-        });
-        router.push("/dashboard");
-      }
+    if (!user) return;
+    
+    const role = user.role;
+    let isRestricted = false;
+    
+    if (pathname.startsWith('/users')) {
+      // Solo admin y director
+      isRestricted = role !== 'admin' && role !== 'director';
+    } else if (pathname.startsWith('/dashboard/reportes')) {
+      // Solo admin y director
+      isRestricted = role !== 'admin' && role !== 'director';
+    } else if (pathname.startsWith('/students/new') || pathname.endsWith('/edit')) {
+      // Solo admin, director y subdirector pueden crear o editar estudiantes
+      isRestricted = role !== 'admin' && role !== 'director' && role !== 'subdirector';
+    } else if (pathname.startsWith('/dashboard/asistencias')) {
+      // Todos menos psicólogo
+      isRestricted = role === 'psicologo';
+    }
+    
+    if (isRestricted) {
+      toast({
+        title: "Acceso Denegado",
+        description: "No tienes permisos para acceder a este módulo.",
+        variant: "destructive"
+      });
+      router.push("/dashboard");
     }
   }, [user, pathname, router, toast]);
 
@@ -81,13 +94,14 @@ export default function DashboardLayout({
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <SidebarInset className="flex-1 bg-background">
-          <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white/80 px-6 backdrop-blur-md">
+          <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/40 bg-background/50 px-6 backdrop-blur-md">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
-              <h1 className="text-xl font-bold font-headline text-slate-800">EduControl.A.G.G</h1>
+              <h1 className="text-xl font-bold font-headline text-slate-800 dark:text-slate-100">EduControl.A.G.G</h1>
             </div>
             <div className="flex items-center gap-4">
               <NotificationsNav />
+              <ThemeToggle />
               <UserNav />
             </div>
           </header>

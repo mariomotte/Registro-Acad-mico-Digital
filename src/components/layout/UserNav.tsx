@@ -15,6 +15,19 @@ import { useSupabaseAuth } from "@/lib/supabase-hooks"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { getUserAvatar } from "@/lib/avatar"
+
+function getRoleLabel(role: string): string {
+  switch (role) {
+    case 'admin': return 'Superusuario';
+    case 'director': return 'Director';
+    case 'subdirector': return 'Subdirector';
+    case 'docente': return 'Docente';
+    case 'auxiliar': return 'Auxiliar';
+    case 'psicologo': return 'Psicólogo';
+    default: return role;
+  }
+}
 
 export function UserNav() {
   const { user } = useSupabaseAuth()
@@ -32,7 +45,7 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-primary/10">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={`https://picsum.photos/seed/${user.id}/200`} alt={`${user.firstName} ${user.lastName}`} />
+            <AvatarImage src={getUserAvatar(user)} alt={`${user.firstName} ${user.lastName}`} />
             <AvatarFallback>{(user.firstName || "U").charAt(0)}</AvatarFallback>
           </Avatar>
         </Button>
@@ -54,7 +67,7 @@ export function UserNav() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem className="cursor-default">
-            Rol: <span className="ml-2 font-bold text-primary">{user.role || "Cargando..."}</span>
+            Rol: <span className="ml-2 font-bold text-primary">{getRoleLabel(user.role) || "Cargando..."}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

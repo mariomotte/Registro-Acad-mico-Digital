@@ -29,9 +29,9 @@ import { es } from "date-fns/locale"
 import { Incidencia } from "@/types"
 
 const severityColors = {
-  bajo: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  medio: "bg-amber-100 text-amber-700 border-amber-200",
-  alto: "bg-red-100 text-red-700 border-red-200",
+  bajo: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15",
+  medio: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/15",
+  alto: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 hover:bg-red-500/15",
 }
 
 export default function IncidentsPage() {
@@ -47,7 +47,7 @@ export default function IncidentsPage() {
       try {
         const { data, error } = await supabase
           .from('incidencias')
-          .select('*')
+          .select('id, alumno_id, alumno_nombre, alumno_grado, alumno_seccion, tipo, descripcion, severidad, fecha, registrado_por, registrador_user_id, evidence_urls')
           .order('fecha', { ascending: false });
         
         if (error) throw error;
@@ -137,7 +137,7 @@ export default function IncidentsPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+      <div className="rounded-lg border bg-card shadow-sm overflow-x-auto">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -146,45 +146,55 @@ export default function IncidentsPage() {
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50/50">
-                <TableHead>Fecha</TableHead>
-                <TableHead>Alumno</TableHead>
-                <TableHead>Tipo de Incidencia</TableHead>
-                <TableHead>Severidad</TableHead>
-                <TableHead>Registrado por</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-bold text-slate-700 dark:text-slate-300">Fecha</TableHead>
+                <TableHead className="font-bold text-slate-700 dark:text-slate-300">Alumno</TableHead>
+                <TableHead className="font-bold text-slate-700 dark:text-slate-300">Tipo de Incidencia</TableHead>
+                <TableHead className="font-bold text-slate-700 dark:text-slate-300">Severidad</TableHead>
+                <TableHead className="font-bold text-slate-700 dark:text-slate-300">Registrado por</TableHead>
+                <TableHead className="text-right font-bold text-slate-700 dark:text-slate-300">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredIncidents.length > 0 ? (
                 filteredIncidents.map((incident) => (
-                  <TableRow key={incident.id} className="hover:bg-slate-50/50 transition-colors">
-                    <TableCell className="text-xs font-medium text-slate-500">
+                  <TableRow key={incident.id} className="hover:bg-muted/50 transition-colors group">
+                    <TableCell className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {formatFecha(incident.fecha)}
                     </TableCell>
-                    <TableCell className="font-semibold text-primary">
-                      <Link href={`/students/${incident.alumnoId}`} className="hover:underline">
+                    <TableCell className="font-semibold text-slate-800 dark:text-slate-100">
+                      <Link href={`/students/${incident.alumnoId}`} className="hover:text-primary transition-colors block">
                         {incident.alumnoNombre}
                       </Link>
                       {incident.alumnoGrado && incident.alumnoSeccion && (
-                        <div className="text-xs text-slate-500 font-normal mt-0.5 flex items-center gap-1">
-                          <span className="bg-slate-100 px-1.5 py-0.5 rounded border">{incident.alumnoGrado} {incident.alumnoSeccion}</span>
+                        <div className="text-[10px] font-bold mt-1 flex items-center gap-1.5">
+                          <span className="bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-white/5">{incident.alumnoGrado}</span>
+                          <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-md border border-primary/10">{incident.alumnoSeccion}</span>
                         </div>
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-slate-600">{incident.tipo}</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{incident.tipo}</span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={severityColors[incident.severidad as keyof typeof severityColors] || ""}>
-                        {incident.severidad?.toUpperCase()}
-                      </Badge>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase ${
+                        incident.severidad === 'bajo' ? severityColors.bajo :
+                        incident.severidad === 'medio' ? severityColors.medio :
+                        severityColors.alto
+                      }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${
+                          incident.severidad === 'bajo' ? 'bg-emerald-500' :
+                          incident.severidad === 'medio' ? 'bg-amber-500' :
+                          'bg-red-500'
+                        }`} />
+                        {incident.severidad}
+                      </span>
                     </TableCell>
-                    <TableCell className="text-sm text-slate-500">
+                    <TableCell className="text-xs font-medium text-slate-500 dark:text-slate-400">
                       {incident.registradoPor}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
+                      <Button variant="ghost" size="sm" asChild className="h-8 hover:bg-slate-150 dark:hover:bg-white/5 hover:text-primary rounded-lg text-slate-600 dark:text-slate-300">
                         <Link href={`/students/${incident.alumnoId}`}>Ver Detalles</Link>
                       </Button>
                     </TableCell>
@@ -192,7 +202,7 @@ export default function IncidentsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground font-medium italic">
                     No se encontraron incidencias registradas.
                   </TableCell>
                 </TableRow>

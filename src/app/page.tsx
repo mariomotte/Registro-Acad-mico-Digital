@@ -13,17 +13,27 @@ export default function Home() {
   useEffect(() => {
     if (!isUserLoading) {
       if (user) {
-        // Redirigir al nuevo módulo de Dashboard, no a incidencias
-        router.push("/dashboard")
+        router.replace("/dashboard")
       } else {
-        router.push("/login")
+        router.replace("/login")
       }
     }
   }, [user, isUserLoading, router])
 
+  // Fallback de seguridad: Si tarda más de 2 segundos en cargar, redirigir al login
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      router.replace("/login")
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [router])
+
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-xs text-muted-foreground">Iniciando sesión...</p>
+      </div>
     </div>
   )
 }

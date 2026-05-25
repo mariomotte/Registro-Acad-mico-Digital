@@ -10,8 +10,9 @@ import {
   ClipboardList, 
   Bell, 
   LogOut,
-  Brain,
-  ShieldCheck
+  ShieldCheck,
+  CalendarCheck,
+  BarChart3
 } from "lucide-react"
 
 import {
@@ -38,18 +39,19 @@ export function AppSidebar() {
     { name: "Panel de Control", icon: LayoutDashboard, path: "/dashboard" },
     { name: "Alumnos", icon: Users, path: "/students" },
     { name: "Incidencias", icon: ClipboardList, path: "/incidents" },
-    { name: "Alertas", icon: Bell, path: "/alerts" },
   ]
 
-  // Add psychology module if role is Psicólogo, Director or Superusuario
-  const canSeePsychology = user?.role === 'Psicólogo' || user?.role === 'Director' || user?.role === 'Superusuario';
-  if (canSeePsychology) {
-    menuItems.push({ name: "Psicopedagógico", icon: Brain, path: "/psychology" });
+
+
+  menuItems.push({ name: "Alertas", icon: Bell, path: "/alerts" });
+
+  // Agregar reportes si es admin o director
+  if (user?.role === 'admin' || user?.role === 'director') {
+    menuItems.push({ name: "Reportes", icon: BarChart3, path: "/dashboard/reportes" });
   }
 
-  // Add access and roles management if role is Superusuario or Director
-  const canSeeUsers = user?.role === 'Superusuario' || user?.role === 'Director';
-  if (canSeeUsers) {
+  // Agregar roles y accesos si es admin o director
+  if (user?.role === 'admin' || user?.role === 'director') {
     menuItems.push({ name: "Accesos y Roles", icon: ShieldCheck, path: "/users" });
   }
 
