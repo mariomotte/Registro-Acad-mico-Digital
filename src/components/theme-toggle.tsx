@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function ThemeToggle() {
-  const { setTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
+
+  React.useEffect(() => {
+    if (theme === "system") setTheme("light")
+  }, [theme, setTheme])
 
   return (
     <DropdownMenu>
@@ -29,9 +33,6 @@ export function ThemeToggle() {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("dark")} className="cursor-pointer rounded-lg focus:bg-accent">
           Oscuro
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")} className="cursor-pointer rounded-lg focus:bg-accent">
-          Sistema
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

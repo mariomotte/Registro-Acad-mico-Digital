@@ -60,7 +60,8 @@ export default function LoginPage() {
         duration: 3000,
       })
 
-      router.push("/")
+      router.replace("/dashboard")
+      router.refresh()
     } catch (error: any) {
       let message = error.message || "Ocurrió un error inesperado."
 
@@ -160,7 +161,6 @@ export default function LoginPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="ejemplo@colegio.edu"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -184,7 +184,6 @@ export default function LoginPage() {
                     id="password"
                     type="password"
                     required
-                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 py-5 bg-slate-950/80 border-slate-800 text-slate-100 placeholder-slate-500 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg transition-colors"

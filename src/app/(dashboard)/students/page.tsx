@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import type { FormEvent } from "react"
 import { 
   Table, 
   TableBody, 
@@ -32,6 +33,8 @@ import { Label } from "@/components/ui/label"
 import { Search, UserPlus, Filter, X, RotateCcw, Loader2, ChevronLeft, ChevronRight, Edit3, Eye } from "lucide-react"
 import { useSupabaseAuth } from "@/lib/supabase-hooks"
 import { supabase } from "@/lib/supabase"
+import { logAudit } from "@/lib/audit"
+import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { Alumno } from "@/types"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -39,12 +42,28 @@ import { getUserAvatar } from "@/lib/avatar"
 
 export default function StudentsPage() {
   const { user } = useSupabaseAuth()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [students, setStudents] = useState<Alumno[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [sectionSummary, setSectionSummary] = useState<Array<{ grado: string; secciones: string[]; total: number }>>([])
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [newStudent, setNewStudent] = useState({
+    nombres: "",
+    apellidos: "",
+    dni: "",
+    grado: "",
+    seccion: "",
+    estado: "Activo" as "Activo" | "Inactivo" | "Suspendido",
+    apoderado: "",
+    telefono: "",
+    fecha_nacimiento: ""
+  })
   const limit = 50
 
   const [filters, setFilters] = useState({
@@ -52,6 +71,28 @@ export default function StudentsPage() {
     seccion: "todos",
     estado: "todos"
   })
+  const isDocente = user?.role === 'docente'
+  const hasTutorSection = Boolean(user?.tutor_grado && user?.tutor_seccion)
+
+  const gradosDisponibles = ["1°", "2°", "3°", "4°", "5°"]
+  const seccionesDisponibles = ["A", "B", "C", "D"]
+  const gradeOrder: Record<string, number> = {
+    "1°": 1,
+    "2°": 2,
+    "3°": 3,
+    "4°": 4,
+    "5°": 5
+  }
+
+  const sortStudents = (items: Alumno[]) => {
+    return [...items].sort((a, b) => {
+      const gradeDiff = (gradeOrder[a.grado] || 99) - (gradeOrder[b.grado] || 99)
+      if (gradeDiff !== 0) return gradeDiff
+      const sectionDiff = String(a.seccion || "").localeCompare(String(b.seccion || ""), "es")
+      if (sectionDiff !== 0) return sectionDiff
+      return `${a.apellidos} ${a.nombres}`.localeCompare(`${b.apellidos} ${b.nombres}`, "es")
+    })
+  }
 
   // Debounce search term to avoid excessive database calls
   useEffect(() => {
@@ -67,34 +108,46 @@ export default function StudentsPage() {
     async function loadStudents() {
       setIsLoading(true)
       try {
+        if (isDocente && !hasTutorSection) {
+          if (mounted) {
+            setStudents([])
+            setTotalCount(0)
+          }
+          return
+        }
+
         let query = supabase
           .from('alumnos')
-          .select('id, nombres, apellidos, dni, grado, seccion, nivel, estado, avatar_url, sexo', { count: 'exact' })
+          .select('id, nombres, apellidos, dni, grado, seccion, nivel, estado, sexo', { count: 'exact' })
 
-        if (filters.grado !== "todos") {
+        if (isDocente) {
+          query = query
+            .eq('grado', user?.tutor_grado)
+            .eq('seccion', user?.tutor_seccion)
+        } else if (filters.grado !== "todos") {
           query = query.eq('grado', filters.grado)
         }
-        if (filters.seccion !== "todos") {
+        if (!isDocente && filters.seccion !== "todos") {
           query = query.eq('seccion', filters.seccion)
         }
         if (filters.estado !== "todos") {
           query = query.eq('estado', filters.estado)
         }
         if (debouncedSearch.trim() !== "") {
-          query = query.or(`nombres.ilike.%${debouncedSearch}%,apellidos.ilike.%${debouncedSearch}%`)
+          query = query.or(`nombres.ilike.%${debouncedSearch}%,apellidos.ilike.%${debouncedSearch}%,dni.ilike.%${debouncedSearch}%`)
         }
 
         const from = (page - 1) * limit
         const to = from + limit - 1
 
-        query = query.order('apellidos', { ascending: true }).range(from, to)
+        query = query.order('grado', { ascending: false }).order('seccion', { ascending: true }).order('apellidos', { ascending: true }).range(from, to)
 
         const { data, count, error } = await query
 
         if (error) throw error
 
         if (mounted) {
-          setStudents((data || []) as unknown as Alumno[])
+          setStudents(sortStudents((data || []) as unknown as Alumno[]))
           setTotalCount(count || 0)
         }
       } catch (err) {
@@ -106,7 +159,60 @@ export default function StudentsPage() {
 
     loadStudents()
     return () => { mounted = false }
-  }, [page, filters, debouncedSearch])
+  }, [page, filters, debouncedSearch, refreshKey, isDocente, hasTutorSection, user?.tutor_grado, user?.tutor_seccion])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadSectionSummary() {
+      if (isDocente && !hasTutorSection) {
+        if (mounted) setSectionSummary([])
+        return
+      }
+
+      let query = supabase
+        .from('alumnos')
+        .select('grado, seccion')
+        .eq('estado', 'Activo')
+
+      if (isDocente) {
+        query = query
+          .eq('grado', user?.tutor_grado)
+          .eq('seccion', user?.tutor_seccion)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error("Error loading section summary:", error)
+        return
+      }
+
+      if (!mounted) return
+
+      const grouped = new Map<string, { secciones: Set<string>; total: number }>()
+      ;(data || []).forEach((row: any) => {
+        const grado = row.grado || "Sin grado"
+        const current = grouped.get(grado) || { secciones: new Set<string>(), total: 0 }
+        if (row.seccion) current.secciones.add(row.seccion)
+        current.total += 1
+        grouped.set(grado, current)
+      })
+
+      setSectionSummary(
+        Array.from(grouped.entries())
+          .map(([grado, value]) => ({
+            grado,
+            secciones: Array.from(value.secciones).sort((a, b) => a.localeCompare(b, "es")),
+            total: value.total
+          }))
+          .sort((a, b) => (gradeOrder[a.grado] || 99) - (gradeOrder[b.grado] || 99))
+      )
+    }
+
+    loadSectionSummary()
+    return () => { mounted = false }
+  }, [refreshKey, isDocente, hasTutorSection, user?.tutor_grado, user?.tutor_seccion])
 
   const resetFilters = () => {
     setFilters({
@@ -123,28 +229,222 @@ export default function StudentsPage() {
     setPage(1)
   }
 
+  const loadStudentsAfterCreate = () => {
+    setPage(1)
+    setDebouncedSearch(searchTerm)
+    setRefreshKey(prev => prev + 1)
+  }
+
+  const handleCreateStudent = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!user) return
+
+    if (newStudent.nombres.trim().length < 2 || newStudent.apellidos.trim().length < 2 || !newStudent.grado || !newStudent.seccion) {
+      toast({
+        variant: "destructive",
+        title: "Datos incompletos",
+        description: "Nombres, apellidos, grado y seccion son obligatorios."
+      })
+      return
+    }
+
+    if (newStudent.dni && !/^\d{8}$/.test(newStudent.dni)) {
+      toast({
+        variant: "destructive",
+        title: "DNI invalido",
+        description: "Si registras DNI, debe tener 8 digitos."
+      })
+      return
+    }
+
+    setIsCreating(true)
+    try {
+      const payload = {
+        nombres: newStudent.nombres.trim(),
+        apellidos: newStudent.apellidos.trim(),
+        dni: newStudent.dni.trim() || null,
+        codigo_estudiante: null,
+        grado: newStudent.grado,
+        seccion: newStudent.seccion,
+        nivel: "Secundaria",
+        estado: newStudent.estado,
+        apoderado: newStudent.apoderado.trim() || null,
+        telefono: newStudent.telefono.trim() || null,
+        fecha_nacimiento: newStudent.fecha_nacimiento || null,
+        sexo: "M"
+      }
+
+      const { data, error } = await supabase
+        .from('alumnos')
+        .insert([payload])
+        .select('id')
+        .single()
+
+      if (error) {
+        if (error.code === '23505') throw new Error("Ya existe un alumno con ese DNI.")
+        throw error
+      }
+
+      await logAudit({
+        userId: user.id,
+        userEmail: user.email,
+        userName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+        modulo: 'ALUMNOS',
+        accion: 'CREAR_ALUMNO',
+        registroId: data?.id,
+        descripcion: `Registro al alumno ${payload.nombres} ${payload.apellidos}.`,
+        datosNuevos: payload
+      })
+
+      toast({
+        title: "Alumno registrado",
+        description: `${payload.nombres} ${payload.apellidos} fue agregado correctamente.`
+      })
+      setNewStudent({ nombres: "", apellidos: "", dni: "", grado: "", seccion: "", estado: "Activo", apoderado: "", telefono: "", fecha_nacimiento: "" })
+      setIsCreateOpen(false)
+      loadStudentsAfterCreate()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "No se pudo registrar",
+        description: error.message || "Revisa los datos e intenta nuevamente."
+      })
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   const totalPages = Math.ceil(totalCount / limit)
   const hasActiveFilters = searchTerm !== "" || filters.grado !== "todos" || filters.seccion !== "todos" || filters.estado !== "todos"
-
-  const gradosDisponibles = ["1ro", "2do", "3ro", "4to", "5to", "6to", "1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
-  const seccionesDisponibles = ["A", "B", "C", "D"]
 
   const canEdit = user?.role === 'admin' || user?.role === 'director' || user?.role === 'subdirector'
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="rounded-2xl border border-teal-900/10 bg-gradient-to-r from-teal-700 to-slate-800 p-6 text-white shadow-lg">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline">Alumnos</h2>
-          <p className="text-muted-foreground">Gestiona la base de datos de estudiantes y sus registros.</p>
+            <h2 className="text-2xl font-bold tracking-tight font-headline">{isDocente ? "Mis alumnos" : "Alumnos"}</h2>
+            <p className="text-sm font-medium text-white/75">
+              {isDocente
+                ? hasTutorSection
+                  ? `Sección asignada: ${user?.tutor_grado} ${user?.tutor_seccion}.`
+                  : "Aún no tienes una sección de tutoría asignada."
+                : "Base de estudiantes de secundaria, ordenada por grado y seccion."}
+            </p>
         </div>
         {canEdit && (
-          <Button asChild className="bg-primary">
-            <Link href="/students/new">
+            <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <SheetTrigger asChild>
+                <Button className="bg-white text-teal-800 hover:bg-white/90">
               <UserPlus className="mr-2 h-4 w-4" /> Registrar Alumno
-            </Link>
-          </Button>
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+                <SheetHeader>
+                  <SheetTitle>Registrar alumno</SheetTitle>
+                </SheetHeader>
+                <form onSubmit={handleCreateStudent} className="grid gap-5 py-6">
+                  <div className="rounded-xl border border-teal-500/20 bg-teal-500/10 p-3 text-xs font-semibold text-teal-800 dark:text-teal-200">
+                    Nivel secundario asignado automaticamente. Solo nombres, apellidos, grado y seccion son obligatorios.
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-nombres">Nombres</Label>
+                      <Input id="new-nombres" value={newStudent.nombres} onChange={(e) => setNewStudent(prev => ({ ...prev, nombres: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-apellidos">Apellidos</Label>
+                      <Input id="new-apellidos" value={newStudent.apellidos} onChange={(e) => setNewStudent(prev => ({ ...prev, apellidos: e.target.value }))} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>DNI opcional</Label>
+                      <Input maxLength={8} value={newStudent.dni} onChange={(e) => setNewStudent(prev => ({ ...prev, dni: e.target.value.replace(/\D/g, "") }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Grado</Label>
+                      <Select value={newStudent.grado} onValueChange={(value) => setNewStudent(prev => ({ ...prev, grado: value }))}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                        <SelectContent>
+                          {gradosDisponibles.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Seccion</Label>
+                      <Select value={newStudent.seccion} onValueChange={(value) => setNewStudent(prev => ({ ...prev, seccion: value }))}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                        <SelectContent>
+                          {seccionesDisponibles.map(s => <SelectItem key={s} value={s}>Seccion {s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Estado</Label>
+                      <Select value={newStudent.estado} onValueChange={(value: "Activo" | "Inactivo" | "Suspendido") => setNewStudent(prev => ({ ...prev, estado: value }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Activo">Activo</SelectItem>
+                          <SelectItem value="Inactivo">Inactivo</SelectItem>
+                          <SelectItem value="Suspendido">Suspendido</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Fecha nacimiento opcional</Label>
+                      <Input type="date" value={newStudent.fecha_nacimiento} onChange={(e) => setNewStudent(prev => ({ ...prev, fecha_nacimiento: e.target.value }))} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Apoderado opcional</Label>
+                      <Input value={newStudent.apoderado} onChange={(e) => setNewStudent(prev => ({ ...prev, apoderado: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Telefono opcional</Label>
+                      <Input value={newStudent.telefono} onChange={(e) => setNewStudent(prev => ({ ...prev, telefono: e.target.value }))} />
+                    </div>
+                  </div>
+
+                  <SheetFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                    <Button type="submit" disabled={isCreating}>
+                      {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Guardar alumno
+                    </Button>
+                  </SheetFooter>
+                </form>
+              </SheetContent>
+            </Sheet>
         )}
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {sectionSummary.map(item => (
+          <button
+            key={item.grado}
+            type="button"
+            onClick={() => handleFilterChange("grado", item.grado)}
+            className={`rounded-xl border p-3 text-left shadow-sm transition hover:-translate-y-0.5 ${
+              filters.grado === item.grado
+                ? "border-teal-500 bg-teal-600 text-white"
+                : "border-teal-900/10 bg-teal-50 text-teal-950 hover:bg-teal-100 dark:bg-teal-950/30 dark:text-teal-100"
+            }`}
+          >
+            <p className="text-xs font-black uppercase tracking-wide">{item.grado}</p>
+            <p className="mt-1 text-lg font-black">{item.secciones.length} secciones</p>
+            <p className="text-[11px] font-semibold opacity-75">{item.secciones.join(", ") || "Sin seccion"} - {item.total} alumnos</p>
+          </button>
+        ))}
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -165,6 +465,7 @@ export default function StudentsPage() {
             </Button>
           )}
 
+          {!isDocente && (
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" className={hasActiveFilters ? "border-primary text-primary bg-primary/5" : ""}>
@@ -239,10 +540,18 @@ export default function StudentsPage() {
               </SheetFooter>
             </SheetContent>
           </Sheet>
+          )}
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card shadow-sm overflow-x-auto">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-surface-container-low p-3 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+        <span className="font-black uppercase text-slate-500">Estados:</span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Activo</span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-1 text-red-700"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Suspendido</span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-slate-500/10 px-2 py-1 text-slate-700 dark:text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-slate-500" /> Inactivo</span>
+      </div>
+
+      <div className="rounded-2xl border border-teal-900/10 bg-surface-container-lowest shadow-sm overflow-x-auto dark:border-white/10">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -252,7 +561,7 @@ export default function StudentsPage() {
           <div>
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
+                <TableRow className="bg-surface-container dark:bg-slate-900">
                   <TableHead className="font-bold text-slate-700 dark:text-slate-300">Nombres y Apellidos</TableHead>
                   <TableHead className="font-bold text-slate-700 dark:text-slate-300">DNI</TableHead>
                   <TableHead className="font-bold text-slate-700 dark:text-slate-300">Grado y Sección</TableHead>
@@ -268,7 +577,7 @@ export default function StudentsPage() {
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 border border-slate-100 dark:border-white/5 shrink-0">
                             <AvatarImage src={getUserAvatar(student)} alt={`${student.nombres} ${student.apellidos}`} />
-                            <AvatarFallback className="bg-slate-100 dark:bg-white/5 text-slate-650 dark:text-slate-300 text-xs font-bold">
+                            <AvatarFallback className="bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-xs font-bold">
                               {student.nombres?.[0] || ""}{student.apellidos?.[0] || ""}
                             </AvatarFallback>
                           </Avatar>
@@ -276,11 +585,11 @@ export default function StudentsPage() {
                             <span className="font-bold text-slate-800 dark:text-slate-100 leading-tight group-hover:text-primary transition-colors">
                               {student.apellidos}, {student.nombres}
                             </span>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium md:hidden mt-0.5">DNI: {student.dni}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium md:hidden mt-0.5">DNI: {student.dni || "Sin registrar"}</span>
                           </div>
                         </div>
                       </TableCell>
-                       <TableCell className="font-mono text-xs text-slate-500 dark:text-slate-400 font-semibold">{student.dni}</TableCell>
+                       <TableCell className="font-mono text-xs text-slate-500 dark:text-slate-400 font-semibold">{student.dni || "Sin registrar"}</TableCell>
                       <TableCell className="font-medium text-slate-700 dark:text-slate-300">
                         <div className="flex items-center gap-1.5">
                           <span className="px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-md text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200/40 dark:border-white/5">
@@ -289,7 +598,6 @@ export default function StudentsPage() {
                           <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-md text-xs font-extrabold border border-primary/15">
                             {student.seccion}
                           </span>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden lg:inline font-semibold">({student.nivel})</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -307,14 +615,14 @@ export default function StudentsPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right flex justify-end gap-1 pt-4">
-                        <Button variant="ghost" size="sm" asChild className="h-8 gap-1 text-slate-600 dark:text-slate-350 hover:text-primary dark:hover:bg-white/5 rounded-lg">
+                        <Button variant="ghost" size="sm" asChild className="h-8 gap-1 text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:bg-white/5 rounded-lg">
                           <Link href={`/students/${student.id}`}>
                             <Eye size={13} />
                             <span className="hidden sm:inline">Ficha</span>
                           </Link>
                         </Button>
                         {canEdit && (
-                          <Button variant="ghost" size="sm" asChild className="h-8 gap-1 text-slate-600 dark:text-slate-350 hover:text-primary dark:hover:bg-white/5 rounded-lg">
+                          <Button variant="ghost" size="sm" asChild className="h-8 gap-1 text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:bg-white/5 rounded-lg">
                             <Link href={`/students/${student.id}/edit`}>
                               <Edit3 size={13} />
                               <span className="hidden sm:inline">Editar</span>
@@ -340,7 +648,7 @@ export default function StudentsPage() {
             
             {/* PAGINATION CONTROLS */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50/50">
+              <div className="flex items-center justify-between px-6 py-4 border-t bg-surface-container-low dark:bg-slate-900">
                 <span className="text-xs text-muted-foreground">
                   Mostrando del {(page - 1) * limit + 1} al {Math.min(page * limit, totalCount)} de {totalCount} estudiantes
                 </span>
@@ -353,7 +661,7 @@ export default function StudentsPage() {
                   >
                     <ChevronLeft size={16} className="mr-1" /> Anterior
                   </Button>
-                  <span className="text-xs font-semibold text-slate-700">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     Página {page} de {totalPages}
                   </span>
                   <Button 

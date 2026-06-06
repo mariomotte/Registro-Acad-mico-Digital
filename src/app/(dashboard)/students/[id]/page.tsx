@@ -57,12 +57,15 @@ export default function StudentDetailPage() {
   const [isIncidentsLoading, setIsIncidentsLoading] = useState(true)
   const [incidentsError, setIncidentsError] = useState<Error | null>(null)
 
-  const [attendance, setAttendance] = useState<any[]>([])
-  const [isAttendanceLoading, setIsAttendanceLoading] = useState(true)
-
   // Estados de la Bitácora
   const [tutorNote, setTutorNote] = useState("")
   const [isSavingNote, setIsSavingNote] = useState(false)
+
+  // Estados de Fortalezas / Aspectos por mejorar
+  const [fortalezas, setFortalezas] = useState("")
+  const [porMejorar, setPorMejorar] = useState("")
+  const [isEditingStrengths, setIsEditingStrengths] = useState(false)
+  const [isSavingStrengths, setIsSavingStrengths] = useState(false)
 
   // Control de pestañas
   const [activeTab, setActiveTab] = useState<"tardanzas" | "inasistencias" | "incidencias" | "bitacora">("tardanzas")
@@ -73,17 +76,23 @@ export default function StudentDetailPage() {
     
     async function loadData() {
       if (!id || !user) return;
+      let loadedStudent: any = null;
       
       // Load Student
       try {
         const { data: sData, error: sError } = await supabase
           .from('alumnos')
-          .select('id, nombres, apellidos, estado, grado, seccion, dni, codigo_estudiante, nivel, fecha_nacimiento, apoderado, telefono, sexo, avatar_url')
+          .select('id, nombres, apellidos, estado, grado, seccion, nivel, sexo, dni, apoderado, telefono, fortalezas, por_mejorar')
           .eq('id', id)
           .single();
           
         if (sError) throw sError;
-        if (mounted) setStudent(sData);
+        loadedStudent = sData;
+        if (mounted && sData) {
+          setStudent(sData);
+          setFortalezas(sData.fortalezas || "");
+          setPorMejorar(sData.por_mejorar || "");
+        }
       } catch (err) {
         if (mounted) setStudentError(err as Error);
       } finally {
@@ -92,35 +101,32 @@ export default function StudentDetailPage() {
 
       // Load Incidents
       try {
-        const { data: iData, error: iError } = await supabase
+        let incidentsQuery = supabase
           .from('incidencias')
-          .select('id, tipo, registrado_por, fecha, severidad, descripcion, accion_tomada, evidence_urls')
+          .select('id, tipo, registrado_por, fecha, fecha_suceso, severidad, descripcion, accion_tomada, evidence_urls')
           .eq('alumno_id', id)
-          .order('fecha', { ascending: false });
+
+        const isTutorStudent = user.role === 'docente'
+          && loadedStudent
+          && loadedStudent.grado === user.tutor_grado
+          && loadedStudent.seccion === user.tutor_seccion;
+
+        if (user.role === 'docente' && !isTutorStudent) {
+          incidentsQuery = incidentsQuery.eq('registrador_user_id', user.id);
+        }
+
+        const { data: iData, error: iError } = await incidentsQuery.order('created_at', { ascending: false });
           
         if (iError) throw iError;
-        if (mounted) setIncidents(iData || []);
+        if (mounted) setIncidents((iData || []).map((i: any) => ({
+          ...i,
+          fecha: i.fecha_suceso || i.fecha
+        })));
       } catch (err) {
         console.error("Error loading incidents:", err);
         if (mounted) setIncidents([]);
       } finally {
         if (mounted) setIsIncidentsLoading(false);
-      }
-
-      // Load Attendance History
-      try {
-        const { data: aData, error: aError } = await supabase
-          .from('asistencias')
-          .select('id, fecha, estado, observacion')
-          .eq('alumno_id', id)
-          .order('fecha', { ascending: false });
-
-        if (aError) throw aError;
-        if (mounted) setAttendance(aData || []);
-      } catch (err) {
-        console.error("Error loading attendance history:", err);
-      } finally {
-        if (mounted) setIsAttendanceLoading(false);
       }
     }
     
@@ -162,6 +168,7 @@ export default function StudentDetailPage() {
     setIsSavingNote(true);
     try {
       const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Tutor';
+      const now = new Date()
       const { error } = await supabase
         .from('incidencias')
         .insert({
@@ -175,7 +182,8 @@ export default function StudentDetailPage() {
           severidad: 'leve',
           descripcion: tutorNote.trim(),
           estado: 'pendiente',
-          fecha: new Date().toISOString().split('T')[0]
+          fecha: now.toLocaleDateString('sv-SE'),
+          fecha_suceso: now.toISOString()
         });
 
       if (error) throw error;
@@ -189,11 +197,14 @@ export default function StudentDetailPage() {
       // Reload incidents list
       const { data: iData, error: iError } = await supabase
         .from('incidencias')
-        .select('id, tipo, registrado_por, fecha, severidad, descripcion, accion_tomada, evidence_urls')
+        .select('id, tipo, registrado_por, fecha, fecha_suceso, severidad, descripcion, accion_tomada, evidence_urls')
         .eq('alumno_id', id)
-        .order('fecha', { ascending: false });
+        .order('created_at', { ascending: false });
       if (!iError && iData) {
-        setIncidents(iData);
+        setIncidents(iData.map((i: any) => ({
+          ...i,
+          fecha: i.fecha_suceso || i.fecha
+        })));
       }
     } catch (err: any) {
       console.error(err);
@@ -207,11 +218,48 @@ export default function StudentDetailPage() {
     }
   };
 
+  const handleSaveStrengths = async () => {
+    setIsSavingStrengths(true);
+    try {
+      const { error } = await supabase
+        .from('alumnos')
+        .update({
+          fortalezas: fortalezas.trim() || null,
+          por_mejorar: porMejorar.trim() || null
+        })
+        .eq('id', student.id);
+
+      if (error) throw error;
+
+      setStudent((prev: any) => ({
+        ...prev,
+        fortalezas: fortalezas.trim() || null,
+        por_mejorar: porMejorar.trim() || null
+      }));
+
+      toast({
+        title: "Bitácora actualizada",
+        description: "Se guardaron las fortalezas y aspectos por mejorar con éxito.",
+      });
+      setIsEditingStrengths(false);
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Error al guardar",
+        description: err.message || "No se pudo actualizar las fortalezas/por mejorar.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSavingStrengths(false);
+    }
+  };
+
   const handlePrint = () => {
     if (typeof window !== "undefined") {
       window.print();
     }
   };
+
 
   if (isStudentLoading || !isMounted) {
     return (
@@ -248,113 +296,160 @@ export default function StudentDetailPage() {
     )
   }
 
-  // Filtrado de listas según tipo de registros
-  const tardanzasList = attendance.filter(a => a.estado === 'tardanza')
-  const inasistenciasList = attendance.filter(a => a.estado === 'falta')
-  const incidenciasList = incidents.filter(i => i.tipo !== 'Observación académica')
-  const bitacoraList = incidents.filter(i => i.tipo === 'Observación académica')
+  // Filtrado de listas según tipo de reportes de incidencia
+  const isAcademicObservation = (tipo: string) => tipo === 'Observación académica' || tipo === 'ObservaciÃ³n acadÃ©mica'
+  const getIncidentDate = (incident: any) => {
+    const date = new Date(incident.fecha_suceso || incident.fecha)
+    return isNaN(date.getTime()) ? null : date
+  }
+  const currentDate = new Date()
+  const currentYear = currentDate.getFullYear()
+  const currentSemester = currentDate.getMonth() < 6 ? 1 : 2
+  const currentPeriodLabel = `${currentSemester === 1 ? "I" : "II"} semestre ${currentYear}`
+  const isCurrentPeriodIncident = (incident: any) => {
+    const date = getIncidentDate(incident)
+    if (!date) return false
+    const semester = date.getMonth() < 6 ? 1 : 2
+    return date.getFullYear() === currentYear && semester === currentSemester
+  }
 
-  // Cálculos dinámicos
-  const totalAttendanceDays = attendance.length
-  const attendanceRate = totalAttendanceDays > 0 
-    ? Math.round(((totalAttendanceDays - inasistenciasList.length) / totalAttendanceDays) * 100) 
-    : 100
+  const tardanzasList = incidents.filter(i => i.tipo === 'Tardanza')
+  const inasistenciasList = incidents.filter(i => i.tipo === 'Inasistencia')
+  const incidenciasList = incidents.filter(i => !isAcademicObservation(i.tipo) && i.tipo !== 'Inasistencia' && i.tipo !== 'Tardanza')
+  const bitacoraList = incidents.filter(i => isAcademicObservation(i.tipo))
+  const currentPeriodIncidents = incidents.filter(isCurrentPeriodIncident)
+  const currentConductIncidents = currentPeriodIncidents.filter(i => !isAcademicObservation(i.tipo))
+  const currentModerateCount = currentConductIncidents.filter(i => ['medio', 'moderada'].includes(String(i.severidad || '').toLowerCase())).length
+  const currentSevereCount = currentConductIncidents.filter(i => ['alto', 'grave'].includes(String(i.severidad || '').toLowerCase())).length
+  const currentLightCount = currentConductIncidents.filter(i => ['bajo', 'leve'].includes(String(i.severidad || '').toLowerCase())).length
+  const conductaPenalty = Math.min(
+    3,
+    Math.floor(currentLightCount / 5) +
+    Math.floor(currentModerateCount / 3) +
+    Math.floor(currentSevereCount / 2)
+  )
+  const conductaLevel: "AD" | "A" | "B" | "C" = (["AD", "A", "B", "C"] as const)[conductaPenalty]
+  const conductaGeneral = {
+    AD: "AD - EXCELENTE",
+    A: "A - BUENA",
+    B: "B - EN OBSERVACIÓN",
+    C: "C - CASO CRÍTICO",
+  }[conductaLevel]
 
-  const conductaGeneral = incidenciasList.length === 0 
-    ? "A - EXCELENTE" 
-    : incidenciasList.length <= 2 
-      ? "B - BUENA" 
-      : "C - REGULAR"
-
-  const conductaBadgeClass = incidenciasList.length === 0 
-    ? "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300" 
-    : incidenciasList.length <= 2 
-      ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300" 
-      : "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300"
+  const conductaBadgeClass = {
+    AD: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300",
+    A: "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300",
+    B: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+    C: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
+  }[conductaLevel]
+  const allIncidentHistory = [...incidents].sort((a, b) => {
+    const dateA = getIncidentDate(a)?.getTime() || 0
+    const dateB = getIncidentDate(b)?.getTime() || 0
+    return dateB - dateA
+  })
+  const emittedAt = formatSafeDate(new Date().toISOString(), "dd 'de' MMMM 'de' yyyy, HH:mm")
 
   const canEdit = user?.role === 'admin' || user?.role === 'director' || user?.role === 'subdirector'
-
-  // Renderizador de Calendario Dinámico del Mes Actual
-  const renderCalendar = () => {
-    const currentDate = new Date();
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const monthName = currentDate.toLocaleString('es-ES', { month: 'long' });
-    const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-
-    const getDaysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
-    const getFirstDay = (y: number, m: number) => {
-      const day = new Date(y, m, 1).getDay();
-      return day === 0 ? 6 : day - 1; // Lunes = 0, Domingo = 6
-    };
-
-    const days = getDaysInMonth(year, month);
-    const startOffset = getFirstDay(year, month);
-    const cells: React.ReactNode[] = [];
-
-    // Celdas vacías previas
-    for (let i = 0; i < startOffset; i++) {
-      cells.push(
-        <div key={`empty-${i}`} className="h-8 flex items-center justify-center text-body-md text-outline dark:text-slate-600">
-          -
-        </div>
-      );
-    }
-
-    // Celdas del mes
-    for (let day = 1; day <= days; day++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const dayRecord = attendance.find(a => a.fecha.startsWith(dateStr));
-      
-      let bgClass = "bg-white dark:bg-slate-900 text-on-surface dark:text-slate-200 hover:bg-surface-container";
-      let weightClass = "";
-
-      if (dayRecord) {
-        if (dayRecord.estado === 'falta') {
-          bgClass = "bg-red-500 text-white font-bold rounded-lg";
-        } else if (dayRecord.estado === 'tardanza') {
-          bgClass = "bg-amber-500 text-white font-bold rounded-lg";
-        } else if (dayRecord.estado === 'presente') {
-          bgClass = "bg-emerald-500 text-white font-bold rounded-lg";
-        } else if (dayRecord.estado === 'justificado') {
-          bgClass = "bg-blue-500 text-white font-bold rounded-lg";
-        }
-      }
-
-      cells.push(
-        <div 
-          key={`day-${day}`} 
-          className={cn("h-8 flex items-center justify-center text-body-md transition-colors", bgClass)}
-          title={dayRecord ? `Estado: ${dayRecord.estado} ${dayRecord.observacion ? `(${dayRecord.observacion})` : ''}` : `Día ${day}`}
-        >
-          {day}
-        </div>
-      );
-    }
-
-    return (
-      <div className="p-4 border border-outline-variant dark:border-slate-800 rounded-lg bg-surface-container-low dark:bg-slate-950">
-        <p className="text-center font-bold text-sm mb-3 text-primary dark:text-primary-fixed uppercase tracking-wider">{capitalizedMonth} {year}</p>
-        <div className="grid grid-cols-7 gap-1 text-center mb-2">
-          {["L", "M", "M", "J", "V", "S", "D"].map((d, idx) => (
-            <div key={idx} className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400">{d}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {cells}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 justify-center text-[10px] font-bold border-t pt-3 dark:border-slate-800">
-          <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Presente</div>
-          <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> Falta</div>
-          <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> Tardanza</div>
-          <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" /> Justificado</div>
-        </div>
-      </div>
-    );
-  };
+  const canEditStrengths = user?.role === 'admin' || user?.role === 'director' || user?.role === 'subdirector' || user?.role === 'docente' || user?.role === 'auxiliar'
 
   return (
-    <div className="space-y-8 max-w-[1440px] mx-auto pb-20">
+    <>
+    <section className="student-print-report hidden bg-white text-slate-950">
+      <header className="student-print-header">
+        <div className="student-print-logo">
+          <img src="/logo.png" alt="Logo institucional" />
+        </div>
+        <div>
+          <p className="student-print-school">Americo Garibaldi Ghersy</p>
+          <h1>Ficha de seguimiento estudiantil</h1>
+          <p>Documento para apoderado - {currentPeriodLabel}</p>
+        </div>
+        <div className="student-print-meta">
+          <span>Fecha de emisión</span>
+          <strong>{emittedAt}</strong>
+        </div>
+      </header>
+
+      <section className="student-print-section">
+        <h2>Datos del alumno</h2>
+        <div className="student-print-grid">
+          <div><span>Alumno</span><strong>{student.nombres} {student.apellidos}</strong></div>
+          <div><span>Grado y sección</span><strong>{student.grado} {student.seccion}</strong></div>
+          <div><span>DNI</span><strong>{student.dni || "No registrado"}</strong></div>
+          <div><span>Estado</span><strong>{student.estado || "No registrado"}</strong></div>
+          <div><span>Apoderado</span><strong>{student.apoderado || "No registrado"}</strong></div>
+          <div><span>Teléfono</span><strong>{student.telefono || "No registrado"}</strong></div>
+        </div>
+      </section>
+
+      <section className="student-print-section">
+        <h2>Resumen del periodo</h2>
+        <div className="student-print-summary">
+          <div className="student-print-conduct">
+            <span>Conducta sugerida</span>
+            <strong>{conductaGeneral}</strong>
+          </div>
+          <div><span>Tardanzas reportadas</span><strong>{tardanzasList.length}</strong></div>
+          <div><span>Inasistencias reportadas</span><strong>{inasistenciasList.length}</strong></div>
+          <div><span>Reportes de conducta</span><strong>{incidenciasList.length}</strong></div>
+        </div>
+      </section>
+
+      <section className="student-print-section">
+        <h2>Historial de incidencias</h2>
+        {allIncidentHistory.length > 0 ? (
+          <table className="student-print-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Severidad</th>
+                <th>Registrado por</th>
+                <th>Descripción</th>
+                <th>Acción tomada</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allIncidentHistory.map((incident) => (
+                <tr key={incident.id}>
+                  <td>{formatSafeDate(incident.fecha, "dd/MM/yyyy")}</td>
+                  <td>{incident.tipo}</td>
+                  <td>{incident.severidad || "No registrada"}</td>
+                  <td>{incident.registrado_por || "No registrado"}</td>
+                  <td>{incident.descripcion || "Sin descripción"}</td>
+                  <td>{incident.accion_tomada || "Sin registrar"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="student-print-empty">No hay incidencias registradas para este alumno.</p>
+        )}
+      </section>
+
+      <section className="student-print-section student-print-two-columns">
+        <div>
+          <h2>Fortalezas</h2>
+          <p>{student.fortalezas || "Sin registrar"}</p>
+        </div>
+        <div>
+          <h2>Aspectos por mejorar</h2>
+          <p>{student.por_mejorar || "Sin registrar"}</p>
+        </div>
+      </section>
+
+      <footer className="student-print-footer">
+        <div>
+          <span>Responsable</span>
+          <strong>{`${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Personal autorizado"}</strong>
+        </div>
+        <div className="student-print-signature">
+          <span>Firma y sello</span>
+        </div>
+      </footer>
+    </section>
+
+    <div className="student-screen-content space-y-8 max-w-[1440px] mx-auto pb-20">
       {/* Breadcrumb / Header Section */}
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -363,7 +458,7 @@ export default function StudentDetailPage() {
             <ChevronRight size={14} className="text-slate-400" />
             <span>{student.grado} {student.seccion}</span>
             <ChevronRight size={14} className="text-slate-400" />
-            <span className="text-primary dark:text-primary-fixed font-bold">Historial del Estudiante</span>
+            <span className="text-primary dark:text-primary-fixed font-bold">Historial de incidencias</span>
           </nav>
           <h2 className="font-display-lg text-display-lg text-on-surface dark:text-slate-100">{student.nombres} {student.apellidos}</h2>
         </div>
@@ -373,7 +468,7 @@ export default function StudentDetailPage() {
             onClick={handlePrint}
             className="px-4 py-2 bg-surface-container dark:bg-slate-900 border border-outline-variant dark:border-slate-800 text-on-surface-variant dark:text-slate-200 font-label-md text-label-md rounded-lg hover:bg-surface-container-high dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
           >
-            <Printer size={18} /> Imprimir Reporte
+            <Printer size={18} /> Generar PDF
           </button>
           
           <Link href={`/incidents/new?studentId=${student.id}`}>
@@ -406,14 +501,21 @@ export default function StudentDetailPage() {
               <h3 className="font-headline-sm text-headline-sm text-on-surface dark:text-slate-100">{student.nombres} {student.apellidos}</h3>
               <p className="font-body-md text-body-md text-on-surface-variant dark:text-slate-400 mb-6">ID: #STU-{String(student.id || "").slice(-6).toUpperCase()}</p>
               
-              <div className="grid grid-cols-2 w-full gap-4 pt-6 border-t border-outline-variant dark:border-slate-800">
+              <div className="w-full pt-6 border-t border-outline-variant dark:border-slate-800">
+                <p className="mb-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant dark:text-slate-400">Incidencias recurrentes</p>
+                <div className="grid grid-cols-3 w-full gap-3">
                 <div className="text-center">
-                  <span className="font-label-md text-label-md text-on-surface-variant dark:text-slate-400 block mb-1">ASISTENCIA</span>
-                  <span className="font-display-md text-display-md text-primary dark:text-primary-fixed font-bold">{attendanceRate}%</span>
+                  <span className="font-label-md text-[10px] leading-tight text-on-surface-variant dark:text-slate-400 block mb-1">TARDANZAS REPORTADAS</span>
+                  <span className="font-display-md text-display-md text-primary dark:text-primary-fixed font-bold">{tardanzasList.length}</span>
                 </div>
                 <div className="text-center border-l border-outline-variant dark:border-slate-800">
-                  <span className="font-label-md text-label-md text-on-surface-variant dark:text-slate-400 block mb-1">PROMEDIO</span>
-                  <span className="font-display-md text-display-md text-green-700 dark:text-green-400 font-bold">16.5</span>
+                  <span className="font-label-md text-[10px] leading-tight text-on-surface-variant dark:text-slate-400 block mb-1">INASISTENCIAS REPORTADAS</span>
+                  <span className="font-display-md text-display-md text-red-600 dark:text-red-400 font-bold">{inasistenciasList.length}</span>
+                </div>
+                <div className="text-center border-l border-outline-variant dark:border-slate-800">
+                  <span className="font-label-md text-[10px] leading-tight text-on-surface-variant dark:text-slate-400 block mb-1">REPORTES DE CONDUCTA</span>
+                  <span className="font-display-md text-display-md text-amber-600 dark:text-amber-400 font-bold">{incidenciasList.length}</span>
+                </div>
                 </div>
               </div>
             </div>
@@ -421,7 +523,7 @@ export default function StudentDetailPage() {
 
           {/* Academic Info */}
           <div className="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant dark:border-slate-800/80 rounded-xl p-container-padding card-shadow">
-            <h4 className="font-label-md text-label-md text-on-surface-variant dark:text-slate-400 uppercase tracking-wider mb-4">Detalles Académicos</h4>
+            <h4 className="font-label-md text-label-md text-on-surface-variant dark:text-slate-400 uppercase tracking-wider mb-4">Detalles de seguimiento</h4>
             <div className="space-y-4">
               <div className="flex justify-between items-center text-sm">
                 <span className="font-body-md text-body-md text-on-surface-variant dark:text-slate-400">Grado y Sección</span>
@@ -432,22 +534,17 @@ export default function StudentDetailPage() {
                 <span className="font-label-md text-label-md text-on-surface dark:text-slate-200">Prof. Ricardo García</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="font-body-md text-body-md text-on-surface-variant dark:text-slate-400">Conducta General</span>
+                <span className="font-body-md text-body-md text-on-surface-variant dark:text-slate-400">Conducta sugerida del periodo</span>
                 <span className={cn("px-2 py-1 text-[10px] font-bold rounded uppercase", conductaBadgeClass)}>
                   {conductaGeneral}
                 </span>
               </div>
+              <p className="text-xs leading-relaxed text-on-surface-variant dark:text-slate-400">
+                {currentPeriodLabel}. Conducta sugerida del periodo.
+              </p>
               <div className="flex justify-between items-center text-sm">
                 <span className="font-body-md text-body-md text-on-surface-variant dark:text-slate-400">DNI</span>
-                <span className="font-label-md text-label-md text-on-surface dark:text-slate-200 font-mono">{student.dni || "73849501"}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="font-body-md text-body-md text-on-surface-variant dark:text-slate-400">Código y Nivel</span>
-                <span className="font-label-md text-label-md text-on-surface dark:text-slate-200">{student.codigo_estudiante || "STU-202409"} ({student.nivel || "Secundaria"})</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="font-body-md text-body-md text-on-surface-variant dark:text-slate-400">Nacimiento</span>
-                <span className="font-label-md text-label-md text-on-surface dark:text-slate-200">{student.fecha_nacimiento ? formatSafeDate(student.fecha_nacimiento) : "12 de abr. de 2011"}</span>
+                <span className="font-label-md text-label-md text-on-surface dark:text-slate-200 font-mono">{student.dni || "No registrado"}</span>
               </div>
             </div>
             
@@ -470,15 +567,21 @@ export default function StudentDetailPage() {
                 <User size={20} />
               </div>
               <div className="flex flex-col">
-                <span className="font-label-md text-label-md text-on-surface dark:text-slate-200">{student.apoderado || "María Sosa"}</span>
-                <span className="font-caption text-caption text-on-surface-variant dark:text-slate-400">Madre / Apoderado</span>
+                <span className="font-label-md text-label-md text-on-surface dark:text-slate-200">{student.apoderado || "No registrado"}</span>
+                <span className="font-caption text-caption text-on-surface-variant dark:text-slate-400">Apoderado</span>
               </div>
             </div>
-            <a href={`tel:${student.telefono || "987654321"}`} className="block w-full">
-              <button className="w-full py-2 border border-primary dark:border-primary-fixed text-primary dark:text-primary-fixed font-label-md text-label-md rounded-lg hover:bg-primary-fixed-dim dark:hover:bg-primary/10 transition-colors flex items-center justify-center gap-2">
-                <Phone size={18} /> Llamar Ahora
+            {student.telefono ? (
+              <a href={`tel:${student.telefono}`} className="block w-full">
+                <button className="w-full py-2 border border-primary dark:border-primary-fixed text-primary dark:text-primary-fixed font-label-md text-label-md rounded-lg hover:bg-primary-fixed-dim dark:hover:bg-primary/10 transition-colors flex items-center justify-center gap-2">
+                  <Phone size={18} /> Llamar ({student.telefono})
+                </button>
+              </a>
+            ) : (
+              <button className="w-full py-2 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-label-md text-label-md rounded-lg flex items-center justify-center gap-2 cursor-not-allowed" disabled>
+                <Phone size={18} /> Sin Teléfono
               </button>
-            </a>
+            )}
           </div>
         </div>
 
@@ -498,7 +601,7 @@ export default function StudentDetailPage() {
                   activeTab === "tardanzas" ? "text-primary dark:text-primary-fixed font-bold" : "text-on-surface-variant dark:text-slate-400 hover:text-primary dark:hover:text-primary-fixed"
                 )}
               >
-                TARDANZAS ({tardanzasList.length})
+                TARDANZAS REPORTADAS ({tardanzasList.length})
                 {activeTab === "tardanzas" && <div className="active-tab-indicator bg-primary dark:bg-primary-fixed" />}
               </button>
               
@@ -509,7 +612,7 @@ export default function StudentDetailPage() {
                   activeTab === "inasistencias" ? "text-primary dark:text-primary-fixed font-bold" : "text-on-surface-variant dark:text-slate-400 hover:text-primary dark:hover:text-primary-fixed"
                 )}
               >
-                INASISTENCIAS ({inasistenciasList.length})
+                INASISTENCIAS REPORTADAS ({inasistenciasList.length})
                 {activeTab === "inasistencias" && <div className="active-tab-indicator bg-primary dark:bg-primary-fixed" />}
               </button>
               
@@ -520,7 +623,7 @@ export default function StudentDetailPage() {
                   activeTab === "incidencias" ? "text-primary dark:text-primary-fixed font-bold" : "text-on-surface-variant dark:text-slate-400 hover:text-primary dark:hover:text-primary-fixed"
                 )}
               >
-                INCIDENCIAS REC. ({incidenciasList.length})
+                REPORTES DE CONDUCTA ({incidenciasList.length})
                 {activeTab === "incidencias" && <div className="active-tab-indicator bg-primary dark:bg-primary-fixed" />}
               </button>
               
@@ -541,10 +644,10 @@ export default function StudentDetailPage() {
               {activeTab === "tardanzas" && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center mb-4">
-                    <h5 className="font-headline-sm text-headline-sm text-on-surface dark:text-slate-100">Registro de Tardanzas</h5>
+                    <h5 className="font-headline-sm text-headline-sm text-on-surface dark:text-slate-100">Tardanzas reportadas</h5>
                     <div className="flex items-center gap-2 px-3 py-1 bg-surface-container dark:bg-slate-800 rounded-lg">
                       <Clock size={16} className="text-on-surface-variant dark:text-slate-300" />
-                      <span className="font-label-md text-label-md text-on-surface-variant dark:text-slate-300">Historial Completo</span>
+                      <span className="font-label-md text-label-md text-on-surface-variant dark:text-slate-300">Historial de incidencias</span>
                     </div>
                   </div>
                   
@@ -565,11 +668,11 @@ export default function StudentDetailPage() {
                                 {formatSafeDate(tard.fecha, "dd MMM, yyyy")}
                               </td>
                               <td className="px-4 py-4 font-body-md text-body-md dark:text-slate-300">
-                                {tard.observacion || "Marcado como Tardanza en asistencia diaria."}
+                                {tard.descripcion || "Tardanza reportada."}
                               </td>
                               <td className="px-4 py-4">
                                 <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300 text-[10px] font-bold rounded">
-                                  REGISTRADA
+                                  REPORTADA
                                 </span>
                               </td>
                             </tr>
@@ -579,7 +682,7 @@ export default function StudentDetailPage() {
                     </div>
                   ) : (
                     <div className="text-center py-10 bg-slate-50 dark:bg-slate-950 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">No tiene tardanzas registradas</p>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">No tiene tardanzas reportadas</p>
                     </div>
                   )}
                 </div>
@@ -587,39 +690,56 @@ export default function StudentDetailPage() {
 
               {/* Tab: Inasistencias */}
               {activeTab === "inasistencias" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <h5 className="font-headline-sm text-headline-sm text-on-surface dark:text-slate-100 mb-4">Calendario de Asistencia</h5>
-                    {renderCalendar()}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h5 className="font-headline-sm text-headline-sm text-on-surface dark:text-slate-100">Inasistencias reportadas</h5>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-surface-container dark:bg-slate-800 rounded-lg">
+                      <AlertCircle size={16} className="text-on-surface-variant dark:text-slate-300" />
+                      <span className="font-label-md text-label-md text-on-surface-variant dark:text-slate-300">Historial de incidencias</span>
+                    </div>
                   </div>
-                  <div>
-                    <h5 className="font-headline-sm text-headline-sm text-on-surface dark:text-slate-100 mb-4">Detalle de Faltas</h5>
-                    {inasistenciasList.length > 0 ? (
-                      <ul className="space-y-3">
-                        {inasistenciasList.map((fal) => (
-                          <li key={fal.id} className="p-3 border-l-4 border-red-500 bg-red-50 dark:bg-red-950/20 rounded-r-lg">
-                            <span className="font-label-md text-label-md block dark:text-slate-300 font-mono">
-                              {formatSafeDate(fal.fecha, "dd MMMM, yyyy")}
-                            </span>
-                            <span className="font-body-md text-body-md text-on-surface-variant dark:text-slate-400">
-                              {fal.observacion || "Inasistencia marcada en el parte diario."}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-center py-10 bg-slate-50 dark:bg-slate-950 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Sin inasistencias registradas</p>
-                      </div>
-                    )}
-                  </div>
+                  
+                  {inasistenciasList.length > 0 ? (
+                    <div className="overflow-x-auto border border-outline-variant dark:border-slate-800 rounded-lg">
+                      <table className="w-full text-left border-collapse min-w-[500px]">
+                        <thead>
+                          <tr className="bg-surface-container-low dark:bg-slate-950 border-b border-outline-variant dark:border-slate-800">
+                            <th className="px-4 py-3 font-label-md text-label-md text-on-surface-variant dark:text-slate-400">FECHA</th>
+                            <th className="px-4 py-3 font-label-md text-label-md text-on-surface-variant dark:text-slate-400">DETALLES / OBSERVACIÓN</th>
+                            <th className="px-4 py-3 font-label-md text-label-md text-on-surface-variant dark:text-slate-400">ESTADO</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-outline-variant dark:divide-slate-800">
+                          {inasistenciasList.map((fal) => (
+                            <tr key={fal.id} className="hover:bg-surface-container-low dark:hover:bg-slate-900/50 transition-colors">
+                              <td className="px-4 py-4 font-body-md text-body-md dark:text-slate-300 font-mono">
+                                {formatSafeDate(fal.fecha, "dd MMM, yyyy")}
+                              </td>
+                              <td className="px-4 py-4 font-body-md text-body-md dark:text-slate-300">
+                                {fal.descripcion || "Inasistencia reportada."}
+                              </td>
+                              <td className="px-4 py-4">
+                                <span className="px-2 py-0.5 bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-[10px] font-bold rounded">
+                                  REPORTADA
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-10 bg-slate-50 dark:bg-slate-950 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Sin inasistencias reportadas</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Tab: Incidencias */}
               {activeTab === "incidencias" && (
                 <div className="space-y-6">
-                  <h5 className="font-headline-sm text-headline-sm text-on-surface dark:text-slate-100">Incidencias Recientes</h5>
+                  <h5 className="font-headline-sm text-headline-sm text-on-surface dark:text-slate-100">Reportes de conducta</h5>
                   
                   {isIncidentsLoading ? (
                     <div className="flex justify-center py-10">
@@ -746,43 +866,101 @@ export default function StudentDetailPage() {
           </div>
 
           {/* Secondary Section: Performance Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-card-gap">
-            <div className="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant dark:border-slate-800/80 rounded-xl p-container-padding card-shadow">
-              <div className="flex justify-between items-center mb-4 border-b pb-2 dark:border-slate-800">
-                <h4 className="font-bold text-xs text-on-surface-variant dark:text-slate-400 uppercase tracking-wider">Fortalezas</h4>
-                <TrendingUp className="text-green-600 dark:text-green-400 h-5 w-5" />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-card-gap">
+              <div className="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant dark:border-slate-800/80 rounded-xl p-container-padding card-shadow">
+                <div className="flex justify-between items-center mb-4 border-b pb-2 dark:border-slate-800">
+                  <h4 className="font-bold text-xs text-on-surface-variant dark:text-slate-400 uppercase tracking-wider">Fortalezas</h4>
+                  <div className="flex items-center gap-2">
+                    {canEditStrengths && !isEditingStrengths && (
+                      <button 
+                        onClick={() => setIsEditingStrengths(true)} 
+                        className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
+                      >
+                        <Edit3 size={12} /> Editar
+                      </button>
+                    )}
+                    <TrendingUp className="text-green-600 dark:text-green-400 h-5 w-5" />
+                  </div>
+                </div>
+                {isEditingStrengths ? (
+                  <textarea 
+                    className="w-full min-h-[120px] p-3 text-sm border rounded-lg dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Escriba las fortalezas del alumno..."
+                    value={fortalezas}
+                    onChange={e => setFortalezas(e.target.value)}
+                  />
+                ) : student.fortalezas ? (
+                  <div className="text-sm text-on-surface dark:text-slate-300 whitespace-pre-line leading-relaxed">
+                    {student.fortalezas}
+                  </div>
+                ) : (
+                  <p className="text-sm italic text-slate-400 dark:text-slate-500">Sin registrar</p>
+                )}
               </div>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-on-surface dark:text-slate-300">
-                  <span className="h-1.5 w-1.5 bg-green-500 rounded-full" /> Participación activa en clase.
-                </li>
-                <li className="flex items-center gap-2 text-sm text-on-surface dark:text-slate-300">
-                  <span className="h-1.5 w-1.5 bg-green-500 rounded-full" /> Excelente nivel de redacción.
-                </li>
-                <li className="flex items-center gap-2 text-sm text-on-surface dark:text-slate-300">
-                  <span className="h-1.5 w-1.5 bg-green-500 rounded-full" /> Liderazgo positivo en grupos.
-                </li>
-              </ul>
-            </div>
-            
-            <div className="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant dark:border-slate-800/80 rounded-xl p-container-padding card-shadow">
-              <div className="flex justify-between items-center mb-4 border-b pb-2 dark:border-slate-800">
-                <h4 className="font-bold text-xs text-on-surface-variant dark:text-slate-400 uppercase tracking-wider">Por Mejorar</h4>
-                <AlertCircle className="text-amber-600 dark:text-amber-400 h-5 w-5" />
+              
+              <div className="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant dark:border-slate-800/80 rounded-xl p-container-padding card-shadow">
+                <div className="flex justify-between items-center mb-4 border-b pb-2 dark:border-slate-800">
+                  <h4 className="font-bold text-xs text-on-surface-variant dark:text-slate-400 uppercase tracking-wider">Por Mejorar</h4>
+                  <div className="flex items-center gap-2">
+                    {canEditStrengths && !isEditingStrengths && (
+                      <button 
+                        onClick={() => setIsEditingStrengths(true)} 
+                        className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
+                      >
+                        <Edit3 size={12} /> Editar
+                      </button>
+                    )}
+                    <AlertCircle className="text-amber-600 dark:text-amber-400 h-5 w-5" />
+                  </div>
+                </div>
+                {isEditingStrengths ? (
+                  <textarea 
+                    className="w-full min-h-[120px] p-3 text-sm border rounded-lg dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Escriba los aspectos por mejorar..."
+                    value={porMejorar}
+                    onChange={e => setPorMejorar(e.target.value)}
+                  />
+                ) : student.por_mejorar ? (
+                  <div className="text-sm text-on-surface dark:text-slate-300 whitespace-pre-line leading-relaxed">
+                    {student.por_mejorar}
+                  </div>
+                ) : (
+                  <p className="text-sm italic text-slate-400 dark:text-slate-500">Sin registrar</p>
+                )}
               </div>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-on-surface dark:text-slate-300">
-                  <span className="h-1.5 w-1.5 bg-amber-500 rounded-full" /> Organización de materiales.
-                </li>
-                <li className="flex items-center gap-2 text-sm text-on-surface dark:text-slate-300">
-                  <span className="h-1.5 w-1.5 bg-amber-500 rounded-full" /> Puntualidad en el ingreso matutino.
-                </li>
-              </ul>
             </div>
+
+            {isEditingStrengths && (
+              <div className="flex justify-end gap-3 pt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    setFortalezas(student.fortalezas || "");
+                    setPorMejorar(student.por_mejorar || "");
+                    setIsEditingStrengths(false);
+                  }}
+                  disabled={isSavingStrengths}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  size="sm" 
+                  onClick={handleSaveStrengths}
+                  disabled={isSavingStrengths}
+                  className="bg-primary text-white"
+                >
+                  {isSavingStrengths && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Guardar Cambios
+                </Button>
+              </div>
+            )}
           </div>
 
         </div>
       </div>
     </div>
+    </>
   )
 }

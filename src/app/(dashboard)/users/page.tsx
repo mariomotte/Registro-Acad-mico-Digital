@@ -46,13 +46,11 @@ function mapDbRoleToFrontend(dbRole: string): UserRole {
     case 'Subdirector': return 'subdirector';
     case 'Docente': return 'docente';
     case 'Auxiliar': return 'auxiliar';
-    case 'Psicólogo': return 'psicologo';
     case 'admin': return 'admin';
     case 'director': return 'director';
     case 'subdirector': return 'subdirector';
     case 'docente': return 'docente';
     case 'auxiliar': return 'auxiliar';
-    case 'psicologo': return 'psicologo';
     default: return 'docente';
   }
 }
@@ -64,7 +62,6 @@ function mapFrontendRoleToDb(feRole: UserRole): string {
     case 'subdirector': return 'Subdirector';
     case 'docente': return 'Docente';
     case 'auxiliar': return 'Auxiliar';
-    case 'psicologo': return 'Psicólogo';
     default: return 'Docente';
   }
 }
@@ -76,7 +73,6 @@ function getRoleLabel(role: string): string {
     case 'subdirector': return 'Subdirector';
     case 'docente': return 'Docente';
     case 'auxiliar': return 'Auxiliar';
-    case 'psicologo': return 'Psicólogo';
     default: return role;
   }
 }
@@ -96,6 +92,8 @@ export default function UsersManagementPage() {
   const [newFirstName, setNewFirstName] = useState("")
   const [newLastName, setNewLastName] = useState("")
   const [newRole, setNewRole] = useState<UserRole>("docente")
+  const [newTutorGrado, setNewTutorGrado] = useState("ninguno")
+  const [newTutorSeccion, setNewTutorSeccion] = useState("")
   const [isCreatingUser, setIsCreatingUser] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
 
@@ -107,8 +105,91 @@ export default function UsersManagementPage() {
   const [editEmail, setEditEmail] = useState("")
   const [editPassword, setEditPassword] = useState("")
   const [editRole, setEditRole] = useState<UserRole>("docente")
+  const [editTutorGrado, setEditTutorGrado] = useState("ninguno")
+  const [editTutorSeccion, setEditTutorSeccion] = useState("")
   const [isUpdatingUser, setIsUpdatingUser] = useState(false)
   const [showEditPassword, setShowEditPassword] = useState(false)
+
+  // Helpers for Section choices
+  const getAvailableSectionsForCreate = () => {
+    const allSections = ["A", "B", "C", "D", "E", "F"];
+    if (!newTutorGrado || newTutorGrado === "ninguno") return [];
+    const currentYear = new Date().getFullYear();
+    const assignedSections = users
+      .filter(u => 
+        u.tutor_grado === newTutorGrado && 
+        u.tutor_anio_escolar === currentYear &&
+        (u.tutor_nivel === 'Secundaria' || !u.tutor_nivel)
+      )
+      .map(u => u.tutor_seccion?.trim().toUpperCase());
+    return allSections.filter(s => !assignedSections.includes(s));
+  };
+
+  const getAvailableSectionsForEdit = () => {
+    const allSections = ["A", "B", "C", "D", "E", "F"];
+    if (!editTutorGrado || editTutorGrado === "ninguno" || !editingUser) return [];
+    const currentYear = new Date().getFullYear();
+    const assignedSections = users
+      .filter(u => 
+        u.id !== editingUser.id &&
+        u.tutor_grado === editTutorGrado && 
+        u.tutor_anio_escolar === currentYear &&
+        (u.tutor_nivel === 'Secundaria' || !u.tutor_nivel)
+      )
+      .map(u => u.tutor_seccion?.trim().toUpperCase());
+    return allSections.filter(s => !assignedSections.includes(s));
+  };
+
+  const handleNewTutorGradoChange = (val: string) => {
+    setNewTutorGrado(val);
+    if (val === 'ninguno') {
+      setNewTutorSeccion("");
+    } else {
+      const allSections = ["A", "B", "C", "D", "E", "F"];
+      const currentYear = new Date().getFullYear();
+      const assignedSections = users
+        .filter(u => 
+          u.tutor_grado === val && 
+          u.tutor_anio_escolar === currentYear &&
+          (u.tutor_nivel === 'Secundaria' || !u.tutor_nivel)
+        )
+        .map(u => u.tutor_seccion?.trim().toUpperCase());
+      const available = allSections.filter(s => !assignedSections.includes(s));
+      if (available.length > 0) {
+        setNewTutorSeccion(available[0]);
+      } else {
+        setNewTutorSeccion("");
+      }
+    }
+  };
+
+  const handleEditTutorGradoChange = (val: string) => {
+    setEditTutorGrado(val);
+    if (val === 'ninguno') {
+      setEditTutorSeccion("");
+    } else {
+      if (editingUser && editingUser.tutor_grado === val && editingUser.tutor_seccion) {
+        setEditTutorSeccion(editingUser.tutor_seccion);
+      } else {
+        const allSections = ["A", "B", "C", "D", "E", "F"];
+        const currentYear = new Date().getFullYear();
+        const assignedSections = users
+          .filter(u => 
+            editingUser && u.id !== editingUser.id &&
+            u.tutor_grado === val && 
+            u.tutor_anio_escolar === currentYear &&
+            (u.tutor_nivel === 'Secundaria' || !u.tutor_nivel)
+          )
+          .map(u => u.tutor_seccion?.trim().toUpperCase());
+        const available = allSections.filter(s => !assignedSections.includes(s));
+        if (available.length > 0) {
+          setEditTutorSeccion(available[0]);
+        } else {
+          setEditTutorSeccion("");
+        }
+      }
+    }
+  };
 
   // Estados para eliminación de usuario
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -119,7 +200,7 @@ export default function UsersManagementPage() {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, first_name, last_name, role, estado, created_at')
+        .select('id, email, first_name, last_name, role, estado, created_at, tutor_grado, tutor_seccion, tutor_nivel, tutor_anio_escolar')
         .order('last_name', { ascending: true });
       
       if (error) throw error;
@@ -132,7 +213,11 @@ export default function UsersManagementPage() {
           lastName: u.last_name,
           role: mapDbRoleToFrontend(u.role),
           estado: u.estado,
-          createdAt: u.created_at
+          createdAt: u.created_at,
+          tutor_grado: u.tutor_grado,
+          tutor_seccion: u.tutor_seccion,
+          tutor_nivel: u.tutor_nivel,
+          tutor_anio_escolar: u.tutor_anio_escolar
         })));
       }
     } catch (err) {
@@ -155,19 +240,37 @@ export default function UsersManagementPage() {
   })
 
   // Los roles válidos en BD son 'admin' y 'director'
-  const canManageUsers = user?.role === 'admin' || user?.role === 'director';
+  const canManageUsers = user?.role === 'admin' || user?.role === 'director' || user?.role === 'subdirector';
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       const dbRole = mapFrontendRoleToDb(newRole as UserRole);
+      const isDocente = newRole === 'docente';
+      const updateData: any = { role: dbRole };
+      
+      // Si ya no es docente, limpiar campos de tutoría para cumplir con la constraint
+      if (!isDocente) {
+        updateData.tutor_grado = null;
+        updateData.tutor_seccion = null;
+        updateData.tutor_nivel = null;
+        updateData.tutor_anio_escolar = null;
+      }
+
       const { error } = await supabase
         .from('users')
-        .update({ role: dbRole })
+        .update(updateData)
         .eq('id', userId);
         
       if (error) throw error;
       
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as UserRole } : u));
+      setUsers(prev => prev.map(u => u.id === userId ? { 
+        ...u, 
+        role: newRole as UserRole,
+        tutor_grado: isDocente ? u.tutor_grado : undefined,
+        tutor_seccion: isDocente ? u.tutor_seccion : undefined,
+        tutor_nivel: isDocente ? u.tutor_nivel : undefined,
+        tutor_anio_escolar: isDocente ? u.tutor_anio_escolar : undefined
+      } : u));
       
       // Auditoria
       await logAudit({
@@ -250,6 +353,35 @@ export default function UsersManagementPage() {
       return
     }
 
+    const isDocente = newRole === 'docente';
+    const hasTutorGrado = isDocente && newTutorGrado && newTutorGrado !== 'ninguno';
+    if (hasTutorGrado) {
+      if (!newTutorSeccion) {
+        toast({
+          title: "Sección requerida",
+          description: "Por favor seleccione una sección disponible o cambie el grado tutor a 'Ninguno / Sin tutoría'.",
+          variant: "destructive"
+        });
+        return;
+      }
+      const currentYear = new Date().getFullYear();
+      const duplicate = users.find(u => 
+        u.tutor_grado === newTutorGrado && 
+        u.tutor_seccion?.trim().toLowerCase() === newTutorSeccion.trim().toLowerCase() &&
+        u.tutor_anio_escolar === currentYear &&
+        (u.tutor_nivel === 'Secundaria' || !u.tutor_nivel)
+      );
+
+      if (duplicate) {
+        toast({
+          title: "Conflicto de tutoría",
+          description: `La sección ${newTutorGrado} "${newTutorSeccion}" para el año ${currentYear} ya está asignada al docente ${duplicate.firstName} ${duplicate.lastName}.`,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setIsCreatingUser(true)
 
     try {
@@ -271,6 +403,29 @@ export default function UsersManagementPage() {
       const createdUserId = res?.userId
 
       if (createdUserId) {
+        // Asignar tutoría si es Docente y se seleccionaron grado y sección
+        const hasTutor = newRole === 'docente' && newTutorGrado && newTutorGrado !== 'ninguno' && newTutorSeccion;
+        if (hasTutor) {
+          const { error: tutorError } = await supabase
+            .from('users')
+            .update({
+              tutor_grado: newTutorGrado,
+              tutor_seccion: newTutorSeccion,
+              tutor_nivel: 'Secundaria',
+              tutor_anio_escolar: new Date().getFullYear()
+            })
+            .eq('id', createdUserId);
+
+          if (tutorError) {
+            console.error("Error setting tutor fields:", tutorError);
+            toast({
+              title: "Tutoría no asignada",
+              description: "El operador fue creado, pero la tutoría no pudo ser guardada.",
+              variant: "destructive"
+            });
+          }
+        }
+
         toast({
           title: "Operador Creado",
           description: `El usuario ${newFirstName} ${newLastName} ha sido registrado correctamente.`
@@ -293,6 +448,8 @@ export default function UsersManagementPage() {
         setNewFirstName("")
         setNewLastName("")
         setNewRole("docente")
+        setNewTutorGrado("")
+        setNewTutorSeccion("")
         setShowNewPassword(false)
         setIsDialogOpen(false)
 
@@ -317,6 +474,8 @@ export default function UsersManagementPage() {
     setEditLastName(u.lastName || "")
     setEditEmail(u.email || "")
     setEditRole(u.role)
+    setEditTutorGrado(u.tutor_grado || "ninguno")
+    setEditTutorSeccion(u.tutor_seccion || "")
     setEditPassword("") // Dejar vacío para no cambiar
     setShowEditPassword(false)
     setIsEditOpen(true)
@@ -332,6 +491,36 @@ export default function UsersManagementPage() {
         variant: "destructive"
       })
       return
+    }
+
+    const isDocente = editRole === 'docente'
+    const hasTutorGrado = isDocente && editTutorGrado && editTutorGrado !== 'ninguno'
+    if (hasTutorGrado) {
+      if (!editTutorSeccion) {
+        toast({
+          title: "Sección requerida",
+          description: "Por favor seleccione una sección disponible o cambie el grado tutor a 'Ninguno / Sin tutoría'.",
+          variant: "destructive"
+        });
+        return;
+      }
+      const currentYear = new Date().getFullYear();
+      const duplicate = users.find(u => 
+        u.id !== editingUser.id &&
+        u.tutor_grado === editTutorGrado && 
+        u.tutor_seccion?.trim().toLowerCase() === editTutorSeccion.trim().toLowerCase() &&
+        u.tutor_anio_escolar === currentYear &&
+        (u.tutor_nivel === 'Secundaria' || !u.tutor_nivel)
+      );
+
+      if (duplicate) {
+        toast({
+          title: "Conflicto de tutoría",
+          description: `La sección ${editTutorGrado} "${editTutorSeccion}" para el año ${currentYear} ya está asignada al docente ${duplicate.firstName} ${duplicate.lastName}.`,
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     setIsUpdatingUser(true)
@@ -351,6 +540,29 @@ export default function UsersManagementPage() {
       const res = rpcData as any
       if (res && !res.success) {
         throw new Error(res.error || "Ocurrió un error al actualizar en la base de datos.")
+      }
+
+      // Actualizar tutoría
+      const isDocente = editRole === 'docente'
+      const hasTutor = isDocente && editTutorGrado && editTutorGrado !== 'ninguno' && editTutorSeccion
+      
+      const { error: tutorError } = await supabase
+        .from('users')
+        .update({
+          tutor_grado: hasTutor ? editTutorGrado : null,
+          tutor_seccion: hasTutor ? editTutorSeccion : null,
+          tutor_nivel: hasTutor ? 'Secundaria' : null,
+          tutor_anio_escolar: hasTutor ? new Date().getFullYear() : null
+        })
+        .eq('id', editingUser.id)
+
+      if (tutorError) {
+        console.error("Error updating tutor fields:", tutorError)
+        toast({
+          title: "Tutoría no actualizada",
+          description: "Los datos principales del operador se guardaron, pero no se pudo actualizar la tutoría.",
+          variant: "destructive"
+        })
       }
 
       toast({
@@ -463,21 +675,22 @@ export default function UsersManagementPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-2xl border border-violet-900/10 bg-gradient-to-r from-violet-700 via-slate-800 to-slate-950 p-6 text-white shadow-lg">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100 font-headline flex items-center gap-2">
-            <ShieldCheck className="text-primary" />
-            Accesos y Roles de Operadores
+          <h2 className="text-2xl font-bold tracking-tight font-headline flex items-center gap-2">
+            <ShieldCheck className="text-white/85" />
+            Accesos y Roles
           </h2>
-          <p className="text-muted-foreground">
-            Crea cuentas de operadores y gestiona los niveles de acceso al sistema.
+          <p className="text-sm font-medium text-white/75">
+            Gestiona operadores, permisos y tutorías sin mezclarlo con seguimiento académico.
           </p>
         </div>
 
         {/* Modal de Crear Usuario */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary flex gap-2">
+            <Button className="bg-white text-violet-800 hover:bg-white/90 flex gap-2">
               <UserPlus size={16} />
               Registrar Operador
             </Button>
@@ -498,7 +711,6 @@ export default function UsersManagementPage() {
                   <Label htmlFor="firstName" className="text-right">Nombres</Label>
                   <Input 
                     id="firstName" 
-                    placeholder="Ej. Carlos" 
                     className="col-span-3"
                     value={newFirstName} 
                     onChange={e => setNewFirstName(e.target.value)} 
@@ -509,7 +721,6 @@ export default function UsersManagementPage() {
                   <Label htmlFor="lastName" className="text-right">Apellidos</Label>
                   <Input 
                     id="lastName" 
-                    placeholder="Ej. Mendoza" 
                     className="col-span-3"
                     value={newLastName} 
                     onChange={e => setNewLastName(e.target.value)} 
@@ -521,7 +732,6 @@ export default function UsersManagementPage() {
                   <Input 
                     id="email" 
                     type="email" 
-                    placeholder="carlos@colegio.edu" 
                     className="col-span-3"
                     value={newEmail} 
                     onChange={e => setNewEmail(e.target.value)} 
@@ -534,7 +744,6 @@ export default function UsersManagementPage() {
                     <Input 
                       id="pass" 
                       type={showNewPassword ? "text" : "password"} 
-                      placeholder="Mín. 6 caracteres" 
                       className="w-full pr-10"
                       value={newPassword} 
                       onChange={e => setNewPassword(e.target.value)} 
@@ -564,6 +773,52 @@ export default function UsersManagementPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {newRole === 'docente' && (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="newTutorGrado" className="text-right">Grado Tutor</Label>
+                      <Select value={newTutorGrado} onValueChange={handleNewTutorGradoChange}>
+                        <SelectTrigger id="newTutorGrado" className="col-span-3">
+                          <SelectValue placeholder="Ninguno / Sin tutoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ninguno">Ninguno / Sin tutoría</SelectItem>
+                          <SelectItem value="1°">1°</SelectItem>
+                          <SelectItem value="2°">2°</SelectItem>
+                          <SelectItem value="3°">3°</SelectItem>
+                          <SelectItem value="4°">4°</SelectItem>
+                          <SelectItem value="5°">5°</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {newTutorGrado && newTutorGrado !== 'ninguno' && (() => {
+                      const available = getAvailableSectionsForCreate();
+                      return (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="newTutorSeccion" className="text-right">Sección Tutor</Label>
+                          <div className="col-span-3">
+                            {available.length === 0 ? (
+                              <p className="text-xs text-red-500 font-medium py-2">
+                                Todas las secciones de este grado ya tienen tutor asignado.
+                              </p>
+                            ) : (
+                              <Select value={newTutorSeccion} onValueChange={setNewTutorSeccion}>
+                                <SelectTrigger id="newTutorSeccion" className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {available.map(sec => (
+                                    <SelectItem key={sec} value={sec}>Sección {sec}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>
@@ -596,7 +851,6 @@ export default function UsersManagementPage() {
                   <Label htmlFor="editFirstName" className="text-right">Nombres</Label>
                   <Input 
                     id="editFirstName" 
-                    placeholder="Ej. Carlos" 
                     className="col-span-3"
                     value={editFirstName} 
                     onChange={e => setEditFirstName(e.target.value)} 
@@ -607,7 +861,6 @@ export default function UsersManagementPage() {
                   <Label htmlFor="editLastName" className="text-right">Apellidos</Label>
                   <Input 
                     id="editLastName" 
-                    placeholder="Ej. Mendoza" 
                     className="col-span-3"
                     value={editLastName} 
                     onChange={e => setEditLastName(e.target.value)} 
@@ -619,7 +872,6 @@ export default function UsersManagementPage() {
                   <Input 
                     id="editEmail" 
                     type="email" 
-                    placeholder="carlos@colegio.edu" 
                     className="col-span-3"
                     value={editEmail} 
                     onChange={e => setEditEmail(e.target.value)} 
@@ -661,6 +913,52 @@ export default function UsersManagementPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {editRole === 'docente' && (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="editTutorGrado" className="text-right">Grado Tutor</Label>
+                      <Select value={editTutorGrado} onValueChange={handleEditTutorGradoChange}>
+                        <SelectTrigger id="editTutorGrado" className="col-span-3">
+                          <SelectValue placeholder="Ninguno / Sin tutoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ninguno">Ninguno / Sin tutoría</SelectItem>
+                          <SelectItem value="1°">1°</SelectItem>
+                          <SelectItem value="2°">2°</SelectItem>
+                          <SelectItem value="3°">3°</SelectItem>
+                          <SelectItem value="4°">4°</SelectItem>
+                          <SelectItem value="5°">5°</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {editTutorGrado && editTutorGrado !== 'ninguno' && (() => {
+                      const available = getAvailableSectionsForEdit();
+                      return (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="editTutorSeccion" className="text-right">Sección Tutor</Label>
+                          <div className="col-span-3">
+                            {available.length === 0 ? (
+                              <p className="text-xs text-red-500 font-medium py-2">
+                                Todas las secciones de este grado ya tienen tutor asignado.
+                              </p>
+                            ) : (
+                              <Select value={editTutorSeccion} onValueChange={setEditTutorSeccion}>
+                                <SelectTrigger id="editTutorSeccion" className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {available.map(sec => (
+                                    <SelectItem key={sec} value={sec}>Sección {sec}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" type="button" onClick={() => setIsEditOpen(false)}>
@@ -699,6 +997,7 @@ export default function UsersManagementPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-lg shadow-sm border">
@@ -764,6 +1063,11 @@ export default function UsersManagementPage() {
                           <SelectItem value="auxiliar">Auxiliar</SelectItem>
                         </SelectContent>
                       </Select>
+                      {u.role === 'docente' && u.tutor_grado && u.tutor_seccion && (
+                        <div className="text-[10px] text-muted-foreground mt-1.5 font-semibold bg-primary/5 px-2 py-0.5 rounded border border-primary/10 w-fit">
+                          Tutor: {u.tutor_grado} "{u.tutor_seccion}" ({u.tutor_anio_escolar})
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={u.estado === 'Inactivo' ? 'secondary' : 'default'} className={

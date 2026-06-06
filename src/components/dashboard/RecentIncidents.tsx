@@ -36,8 +36,8 @@ export function RecentIncidents() {
       try {
         let query = supabase
           .from('incidencias')
-          .select('id, alumno_id, alumno_nombre, tipo, descripcion, severidad, fecha, registrado_por')
-          .order('fecha', { ascending: false })
+          .select('id, alumno_id, alumno_nombre, tipo, descripcion, severidad, fecha, fecha_suceso, registrado_por')
+          .order('created_at', { ascending: false })
           .limit(5);
 
         if (user.role === 'docente') {
@@ -56,7 +56,7 @@ export function RecentIncidents() {
             tipo: i.tipo,
             descripcion: i.descripcion,
             severidad: i.severidad,
-            fecha: i.fecha,
+            fecha: i.fecha_suceso || i.fecha,
             registradoPor: i.registrado_por
           })));
         }
@@ -94,7 +94,7 @@ export function RecentIncidents() {
   }
 
   return (
-    <div className="rounded-md border bg-white overflow-hidden">
+    <div className="rounded-md border bg-card overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="bg-slate-50">

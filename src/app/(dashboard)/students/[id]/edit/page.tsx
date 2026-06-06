@@ -25,15 +25,24 @@ import * as z from "zod"
 const studentSchema = z.object({
   nombres: z.string().min(2, "Los nombres deben tener al menos 2 caracteres"),
   apellidos: z.string().min(2, "Los apellidos deben tener al menos 2 caracteres"),
-  dni: z.string().length(8, "El DNI debe tener exactamente 8 dígitos").regex(/^\d+$/, "El DNI debe contener solo números"),
-  codigo_estudiante: z.string().min(3, "El código de estudiante es requerido"),
+  dni: z.union([
+    z.string().length(8, "El DNI debe tener exactamente 8 dígitos").regex(/^\d+$/, "El DNI debe contener solo números"),
+    z.literal("")
+  ]).optional(),
   grado: z.string().min(1, "Seleccione un grado"),
   seccion: z.string().min(1, "Seleccione una sección"),
-  nivel: z.enum(["Primaria", "Secundaria"], { required_error: "Seleccione el nivel educativo" }),
+  nivel: z.literal("Secundaria").optional(),
   estado: z.enum(["Activo", "Inactivo", "Suspendido"]),
-  apoderado: z.string().min(5, "El nombre del apoderado debe tener al menos 5 caracteres"),
-  telefono: z.string().min(9, "El teléfono debe tener al menos 9 dígitos").regex(/^\+?\d+$/, "El teléfono debe ser un número válido"),
-  fecha_nacimiento: z.string().min(1, "La fecha de nacimiento es requerida")
+  apoderado: z.union([
+    z.string().min(2, "El nombre del apoderado debe tener al menos 2 caracteres"),
+    z.literal("")
+  ]).optional(),
+  telefono: z.union([
+    z.string().min(9, "El teléfono debe tener al menos 9 dígitos").regex(/^\+?\d+$/, "El teléfono debe ser un número válido"),
+    z.literal("")
+  ]).optional(),
+  fortalezas: z.string().optional(),
+  por_mejorar: z.string().optional()
 })
 
 type StudentFormValues = z.infer<typeof studentSchema>
@@ -60,7 +69,7 @@ export default function EditStudentPage() {
       try {
         const { data, error } = await supabase
           .from('alumnos')
-          .select('nombres, apellidos, dni, codigo_estudiante, grado, seccion, nivel, estado, apoderado, telefono, fecha_nacimiento')
+          .select('nombres, apellidos, dni, grado, seccion, nivel, estado, apoderado, telefono, fortalezas, por_mejorar')
           .eq('id', actualId)
           .single()
         
@@ -70,15 +79,15 @@ export default function EditStudentPage() {
           reset({
             nombres: data.nombres,
             apellidos: data.apellidos,
-            dni: data.dni,
-            codigo_estudiante: data.codigo_estudiante,
+            dni: data.dni || "",
             grado: data.grado,
             seccion: data.seccion,
-            nivel: data.nivel,
+            nivel: "Secundaria",
             estado: data.estado,
-            apoderado: data.apoderado,
-            telefono: data.telefono,
-            fecha_nacimiento: data.fecha_nacimiento || ""
+            apoderado: data.apoderado || "",
+            telefono: data.telefono || "",
+            fortalezas: data.fortalezas || "",
+            por_mejorar: data.por_mejorar || ""
           })
         }
       } catch (err) {
@@ -111,14 +120,28 @@ export default function EditStudentPage() {
     setIsSaving(true)
 
     try {
+      const updateData = {
+        nombres: data.nombres,
+        apellidos: data.apellidos,
+        grado: data.grado,
+        seccion: data.seccion,
+        nivel: "Secundaria",
+        estado: data.estado,
+        dni: data.dni || null,
+        apoderado: data.apoderado || null,
+        telefono: data.telefono || null,
+        fortalezas: data.fortalezas || null,
+        por_mejorar: data.por_mejorar || null
+      }
+
       const { error } = await supabase
         .from('alumnos')
-        .update(data)
+        .update(updateData)
         .eq('id', actualId)
       
       if (error) {
         if (error.code === '23505') {
-          throw new Error("Ya existe un alumno registrado con ese DNI o Código de Estudiante.")
+          throw new Error("Ya existe un alumno registrado con ese DNI.")
         }
         throw error
       }
@@ -132,7 +155,7 @@ export default function EditStudentPage() {
         accion: 'EDITAR_ALUMNO',
         registroId: actualId as string,
         descripcion: `Actualizó datos del alumno ${data.nombres} ${data.apellidos}.`,
-        datosNuevos: data
+        datosNuevos: updateData
       })
       
       toast({
@@ -152,7 +175,7 @@ export default function EditStudentPage() {
     }
   }
 
-  const gradosDisponibles = ["1ro", "2do", "3ro", "4to", "5to", "6to", "1ro Sec", "2do Sec", "3ro Sec", "4to Sec", "5to Sec"]
+  const gradosDisponibles = ["1°", "2°", "3°", "4°", "5°"]
   const seccionesDisponibles = ["A", "B", "C", "D"]
 
   if (isLoading) {
@@ -170,7 +193,7 @@ export default function EditStudentPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline">Editar Ficha del Alumno</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100 font-headline">Editar Ficha del Alumno</h2>
           <p className="text-muted-foreground">Modifica la información general o cambia el estado del alumno.</p>
         </div>
       </div>
@@ -190,7 +213,6 @@ export default function EditStudentPage() {
                 <Label htmlFor="nombres">Nombres</Label>
                 <Input 
                   id="nombres" 
-                  placeholder="Ej. Juan Carlos" 
                   {...register("nombres")}
                 />
                 {errors.nombres && <p className="text-xs text-red-500 font-medium">{errors.nombres.message}</p>}
@@ -199,7 +221,6 @@ export default function EditStudentPage() {
                 <Label htmlFor="apellidos">Apellidos</Label>
                 <Input 
                   id="apellidos" 
-                  placeholder="Ej. Pérez García" 
                   {...register("apellidos")}
                 />
                 {errors.apellidos && <p className="text-xs text-red-500 font-medium">{errors.apellidos.message}</p>}
@@ -208,41 +229,31 @@ export default function EditStudentPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="dni">DNI</Label>
+                <Label htmlFor="dni">DNI (Opcional)</Label>
                 <Input 
                   id="dni" 
-                  placeholder="8 dígitos" 
                   maxLength={8}
                   {...register("dni")}
                 />
                 {errors.dni && <p className="text-xs text-red-500 font-medium">{errors.dni.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="codigo_estudiante">Código del Estudiante</Label>
-                <Input 
-                  id="codigo_estudiante" 
-                  placeholder="Ej. EST-2026-0099" 
-                  {...register("codigo_estudiante")}
-                />
-                {errors.codigo_estudiante && <p className="text-xs text-red-500 font-medium">{errors.codigo_estudiante.message}</p>}
+                <Label htmlFor="estado">Estado del Alumno</Label>
+                <Select onValueChange={(val) => setValue("estado", val as any, { shouldValidate: true })}>
+                  <SelectTrigger id="estado">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Activo">Activo</SelectItem>
+                    <SelectItem value="Inactivo">Inactivo</SelectItem>
+                    <SelectItem value="Suspendido">Suspendido</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.estado && <p className="text-xs text-red-500 font-medium">{errors.estado.message}</p>}
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="nivel">Nivel</Label>
-                <Select onValueChange={(val) => setValue("nivel", val as any, { shouldValidate: true })}>
-                  <SelectTrigger id="nivel">
-                    <SelectValue placeholder="Seleccionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Primaria">Primaria</SelectItem>
-                    <SelectItem value="Secundaria">Secundaria</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.nivel && <p className="text-xs text-red-500 font-medium">{errors.nivel.message}</p>}
-              </div>
-              
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="grado">Grado</Label>
                 <Select onValueChange={(val) => setValue("grado", val, { shouldValidate: true })}>
@@ -274,51 +285,42 @@ export default function EditStudentPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
-                <Input 
-                  id="fecha_nacimiento" 
-                  type="date" 
-                  {...register("fecha_nacimiento")}
-                />
-                {errors.fecha_nacimiento && <p className="text-xs text-red-500 font-medium">{errors.fecha_nacimiento.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="estado">Estado del Alumno</Label>
-                <Select onValueChange={(val) => setValue("estado", val as any, { shouldValidate: true })}>
-                  <SelectTrigger id="estado">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Activo">Activo</SelectItem>
-                    <SelectItem value="Inactivo">Inactivo</SelectItem>
-                    <SelectItem value="Suspendido">Suspendido</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.estado && <p className="text-xs text-red-500 font-medium">{errors.estado.message}</p>}
-              </div>
-            </div>
-
             <div className="grid gap-4 md:grid-cols-2 border-t pt-4">
               <div className="space-y-2">
-                <Label htmlFor="apoderado">Nombre del Apoderado</Label>
+                <Label htmlFor="apoderado">Nombre del Apoderado (Opcional)</Label>
                 <Input 
                   id="apoderado" 
-                  placeholder="Ej. Manuel Pérez Silva" 
                   {...register("apoderado")}
                 />
                 {errors.apoderado && <p className="text-xs text-red-500 font-medium">{errors.apoderado.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="telefono">Teléfono de Contacto</Label>
+                <Label htmlFor="telefono">Teléfono de Contacto (Opcional)</Label>
                 <Input 
                   id="telefono" 
-                  placeholder="9 dígitos" 
                   maxLength={12}
                   {...register("telefono")}
                 />
                 {errors.telefono && <p className="text-xs text-red-500 font-medium">{errors.telefono.message}</p>}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 border-t pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="fortalezas">Fortalezas</Label>
+                <textarea 
+                  id="fortalezas"
+                  className="w-full min-h-[100px] p-3 text-sm border rounded-lg dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                  {...register("fortalezas")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="por_mejorar">Aspectos por Mejorar</Label>
+                <textarea 
+                  id="por_mejorar"
+                  className="w-full min-h-[100px] p-3 text-sm border rounded-lg dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                  {...register("por_mejorar")}
+                />
               </div>
             </div>
           </CardContent>

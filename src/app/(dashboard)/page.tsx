@@ -8,17 +8,19 @@ import Link from "next/link"
 export default function DashboardPage() {
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-800">Panel de Control</h2>
-          <p className="text-muted-foreground">Bienvenido de nuevo al sistema de gestión académica.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild className="bg-primary hover:bg-primary/90">
-            <Link href="/incidents/new">
-              <Plus className="mr-2 h-4 w-4" /> Registrar Incidencia
-            </Link>
-          </Button>
+      <div className="rounded-2xl border border-slate-900/10 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-950 p-6 text-white shadow-lg">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight font-headline">Panel de Control</h2>
+            <p className="text-sm font-medium text-white/75">Bienvenido de nuevo al sistema de gestión académica.</p>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild className="bg-white text-slate-800 hover:bg-white/90">
+              <Link href="/incidents/new">
+                <Plus className="mr-2 h-4 w-4" /> Registrar Incidencia
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -53,7 +55,7 @@ export default function DashboardPage() {
             ].map((alert, i) => (
               <div key={i} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50 transition-colors">
                 <div className="flex flex-col">
-                  <span className="font-semibold text-slate-700">{alert.name}</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">{alert.name}</span>
                   <span className="text-xs text-muted-foreground">{alert.grade}</span>
                 </div>
                 <div className="flex items-center gap-3">

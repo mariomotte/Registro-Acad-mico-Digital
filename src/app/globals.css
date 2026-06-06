@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-body: "Inter", "sans-serif";
@@ -73,41 +74,41 @@
   }
 
   --color-surface-container: var(--surface-container);
-  --color-secondary-fixed-dim: #b7c8e1;
-  --color-on-secondary-fixed: #0b1c30;
-  --color-tertiary: #522900;
-  --color-inverse-on-surface: #eff1f3;
+  --color-secondary-fixed-dim: #b9d9d7;
+  --color-on-secondary-fixed: #062321;
+  --color-tertiary: #6f3f00;
+  --color-inverse-on-surface: #f2f5f4;
   --color-surface-container-lowest: var(--surface-container-lowest);
   --color-on-secondary-container: var(--on-secondary-container);
   --color-on-secondary-fixed-variant: #38485d;
   --color-surface-container-highest: var(--surface-container-highest);
   --color-on-error-container: #93000a;
-  --color-tertiary-container: #733c00;
-  --color-surface-dim: #d8dadc;
-  --color-tertiary-fixed: #ffdcc3;
+  --color-tertiary-container: #fff1d6;
+  --color-surface-dim: #d8dddc;
+  --color-tertiary-fixed: #ffe0ad;
   --color-surface-container-high: var(--surface-container-high);
   --color-error-container: #ffdad6;
-  --color-surface-bright: #f7f9fb;
-  --color-primary-fixed-dim: #a6c8ff;
-  --color-surface-variant: #e0e3e5;
-  --color-on-primary-container: #93bcfc;
+  --color-surface-bright: #f8faf9;
+  --color-primary-fixed-dim: #91d7d2;
+  --color-surface-variant: #dfe7e5;
+  --color-on-primary-container: #05514d;
   --color-surface-container-low: var(--surface-container-low);
   --color-on-tertiary-fixed-variant: #6e3900;
-  --color-inverse-primary: #a6c8ff;
-  --color-tertiary-fixed-dim: #ffb77d;
+  --color-inverse-primary: #7dd3cf;
+  --color-tertiary-fixed-dim: #ffc56e;
   --color-outline-variant: var(--outline-variant);
-  --color-primary-fixed: #d5e3ff;
-  --color-on-primary-fixed-variant: #144780;
+  --color-primary-fixed: #c9efec;
+  --color-on-primary-fixed-variant: #14615c;
   --color-secondary-container: var(--secondary-container);
-  --color-secondary-fixed: #d3e4fe;
-  --color-on-tertiary-fixed: #2f1500;
-  --color-on-tertiary-container: #f7a967;
+  --color-secondary-fixed: #d7eeeb;
+  --color-on-tertiary-fixed: #261400;
+  --color-on-tertiary-container: #7a4500;
   --color-on-surface: var(--on-surface);
   --color-on-surface-variant: var(--on-surface-variant);
   --color-on-primary-fixed: #001c3b;
-  --color-surface-tint: #335f99;
-  --color-primary-container: #1a4b84;
-  --color-inverse-surface: #2d3133;
+  --color-surface-tint: #0f766e;
+  --color-primary-container: #c9efec;
+  --color-inverse-surface: #252b2a;
 
   --font-headline-sm: "Inter", "sans-serif";
   --font-display-lg: "Inter", "sans-serif";
@@ -131,118 +132,115 @@
 }
 
 :root {
-  --background: 228 15% 95%;
-  --foreground: 220 40% 12%;
+  --background: 180 18% 97%;
+  --foreground: 222 35% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 220 40% 12%;
+  --card-foreground: 222 35% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 220 40% 12%;
+  --popover-foreground: 222 35% 11%;
   
-  --primary: 220 75% 42%;
-  --primary-foreground: 210 40% 98%;
+  --primary: 176 72% 32%;
+  --primary-foreground: 0 0% 100%;
   
-  --secondary: 215 30% 94%;
-  --secondary-foreground: 220 40% 12%;
+  --secondary: 180 22% 92%;
+  --secondary-foreground: 222 35% 14%;
   
-  --muted: 215 25% 94%;
-  --muted-foreground: 218 15% 45%;
+  --muted: 180 16% 93%;
+  --muted-foreground: 215 13% 43%;
   
-  --accent: 260 80% 55%;
-  --accent-foreground: 210 40% 98%;
+  --accent: 35 92% 55%;
+  --accent-foreground: 28 80% 10%;
   
-  --destructive: 0 85% 58%;
+  --destructive: 0 76% 54%;
   --destructive-foreground: 210 40% 98%;
   
-  --border: 218 20% 88%;
-  --input: 218 20% 88%;
-  --ring: 220 75% 42%;
+  --border: 180 15% 85%;
+  --input: 180 15% 85%;
+  --ring: 176 72% 32%;
   
-  --chart-1: 220 75% 42%;
-  --chart-2: 260 80% 55%;
-  --chart-3: 190 75% 40%;
-  --chart-4: 43 85% 62%;
-  --chart-5: 27 90% 64%;
+  --chart-1: 176 72% 32%;
+  --chart-2: 218 72% 48%;
+  --chart-3: 35 92% 55%;
+  --chart-4: 348 72% 56%;
+  --chart-5: 262 52% 56%;
   
-  --radius: 1rem;
+  --radius: 0.75rem;
 
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 220 40% 12%;
-  --sidebar-primary: 220 75% 42%;
+  --sidebar-background: 222 52% 13%;
+  --sidebar-foreground: 210 40% 96%;
+  --sidebar-primary: 199 89% 62%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 215 30% 94%;
-  --sidebar-accent-foreground: 220 40% 12%;
-  --sidebar-border: 218 20% 88%;
-  --sidebar-ring: 220 75% 42%;
+  --sidebar-accent: 217 39% 22%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 216 32% 24%;
+  --sidebar-ring: 199 89% 62%;
 
   /* Custom Light Mode Tokens */
   --surface-container-lowest: #ffffff;
-  --surface-container-low: #f2f4f6;
-  --surface-container: #eceef0;
-  --surface-container-high: #e6e8ea;
-  --surface-container-highest: #e0e3e5;
-  --on-surface: #191c1e;
-  --on-surface-variant: #424750;
-  --outline-variant: #c3c6d1;
-  --secondary-container: #d0e1fb;
-  --on-secondary-container: #54647a;
+  --surface-container-low: #f2f6f5;
+  --surface-container: #ebf1ef;
+  --surface-container-high: #e2ebe9;
+  --surface-container-highest: #d8e4e1;
+  --on-surface: #171d1c;
+  --on-surface-variant: #43504e;
+  --outline-variant: #c0cfcb;
+  --secondary-container: #d7eeeb;
+  --on-secondary-container: #31514e;
 }
 
 .dark {
-  --background: 224 71% 4%;
-  --foreground: 210 40% 98%;
-  --card: 224 71% 7%;
-  --card-foreground: 210 40% 98%;
-  --popover: 224 71% 4%;
-  --popover-foreground: 210 40% 98%;
+  --background: 222 38% 9%;
+  --foreground: 210 32% 96%;
+  --card: 222 31% 13%;
+  --card-foreground: 210 32% 96%;
+  --popover: 222 34% 12%;
+  --popover-foreground: 210 32% 96%;
   
-  /* Electric blue primary */
-  --primary: 217.2 91.2% 59.8%;
-  --primary-foreground: 222.2 47.4% 11.2%;
+  --primary: 176 68% 48%;
+  --primary-foreground: 220 28% 9%;
   
-  --secondary: 224 30% 12%;
-  --secondary-foreground: 210 40% 98%;
+  --secondary: 219 24% 18%;
+  --secondary-foreground: 210 32% 96%;
   
-  --muted: 224 30% 12%;
-  --muted-foreground: 217.2 16.3% 60%;
+  --muted: 219 22% 18%;
+  --muted-foreground: 215 18% 68%;
   
-  /* Electric purple accent */
-  --accent: 262.1 83.3% 57.8%;
-  --accent-foreground: 210 40% 98%;
+  --accent: 35 92% 56%;
+  --accent-foreground: 28 80% 10%;
   
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
   
-  --border: 224 71% 12%;
-  --input: 224 71% 12%;
-  --ring: 224.3 76.3% 48%;
+  --border: 218 22% 24%;
+  --input: 218 22% 24%;
+  --ring: 176 68% 48%;
   
-  --chart-1: 217.2 91.2% 59.8%;
-  --chart-2: 262.1 83.3% 57.8%;
-  --chart-3: 190 75% 45%;
-  --chart-4: 43 85% 62%;
-  --chart-5: 27 90% 64%;
+  --chart-1: 176 68% 48%;
+  --chart-2: 217 76% 62%;
+  --chart-3: 35 92% 56%;
+  --chart-4: 348 76% 63%;
+  --chart-5: 262 62% 67%;
 
-  /* Sleek, professional sidebar variables */
-  --sidebar-background: 224 71% 4%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 217.2 91.2% 59.8%;
-  --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-  --sidebar-accent: 224 30% 10%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 224 71% 8%;
-  --sidebar-ring: 224.3 76.3% 48%;
+  --sidebar-background: 222 52% 11%;
+  --sidebar-foreground: 180 14% 96%;
+  --sidebar-primary: 199 89% 62%;
+  --sidebar-primary-foreground: 220 28% 9%;
+  --sidebar-accent: 217 39% 20%;
+  --sidebar-accent-foreground: 180 14% 96%;
+  --sidebar-border: 216 32% 22%;
+  --sidebar-ring: 199 89% 62%;
 
   /* Custom Dark Mode Tokens */
-  --surface-container-lowest: #0e1622;
-  --surface-container-low: #131f30;
-  --surface-container: #18283e;
-  --surface-container-high: #1d314c;
-  --surface-container-highest: #233b5c;
+  --surface-container-lowest: #111827;
+  --surface-container-low: #172033;
+  --surface-container: #1d2940;
+  --surface-container-high: #24314a;
+  --surface-container-highest: #2d3b57;
   --on-surface: #f1f5f9;
-  --on-surface-variant: #94a3b8;
-  --outline-variant: #1e293b;
-  --secondary-container: #1e293b;
-  --on-secondary-container: #cbd5e1;
+  --on-surface-variant: #b8c4d6;
+  --outline-variant: #35445f;
+  --secondary-container: #1d3348;
+  --on-secondary-container: #d5e9f7;
 }
 
 * {
@@ -251,4 +249,215 @@
 
 body {
   @apply bg-background text-foreground font-body antialiased;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .student-print-report,
+  .student-print-report * {
+    visibility: visible;
+  }
+
+  .student-print-report {
+    display: block !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10.5px;
+    line-height: 1.35;
+  }
+
+  .student-screen-content {
+    display: none !important;
+  }
+
+  .student-print-header {
+    display: grid;
+    grid-template-columns: 68px 1fr 150px;
+    gap: 14px;
+    align-items: center;
+    border-bottom: 2px solid #0f766e;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+
+  .student-print-logo {
+    width: 58px;
+    height: 58px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+  }
+
+  .student-print-logo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .student-print-school {
+    margin: 0 0 2px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f766e;
+    text-transform: uppercase;
+  }
+
+  .student-print-header h1 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.15;
+    color: #0f172a;
+  }
+
+  .student-print-header p {
+    margin: 2px 0 0;
+    color: #475569;
+    font-size: 10.5px;
+  }
+
+  .student-print-meta {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 8px;
+    text-align: right;
+  }
+
+  .student-print-meta span,
+  .student-print-grid span,
+  .student-print-summary span,
+  .student-print-footer span {
+    display: block;
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .student-print-section {
+    break-inside: avoid;
+    margin-bottom: 12px;
+  }
+
+  .student-print-section h2 {
+    margin: 0 0 7px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #cbd5e1;
+    color: #0f766e;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+
+  .student-print-grid,
+  .student-print-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+  }
+
+  .student-print-grid div,
+  .student-print-summary div,
+  .student-print-two-columns > div {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 7px;
+    background: #f8fafc;
+  }
+
+  .student-print-grid strong,
+  .student-print-summary strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: #0f172a;
+  }
+
+  .student-print-conduct {
+    background: #ecfdf5 !important;
+    border-color: #5eead4 !important;
+  }
+
+  .student-print-conduct strong {
+    font-size: 13px;
+    color: #047857;
+  }
+
+  .student-print-note,
+  .student-print-empty {
+    margin: 7px 0 0;
+    color: #475569;
+    font-size: 10px;
+  }
+
+  .student-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .student-print-table th,
+  .student-print-table td {
+    border: 1px solid #cbd5e1;
+    padding: 5px;
+    text-align: left;
+    vertical-align: top;
+    word-break: break-word;
+  }
+
+  .student-print-table th {
+    background: #e2e8f0;
+    color: #0f172a;
+    font-size: 9px;
+    text-transform: uppercase;
+  }
+
+  .student-print-table td {
+    font-size: 9.5px;
+  }
+
+  .student-print-two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .student-print-two-columns p {
+    margin: 0;
+    min-height: 42px;
+    white-space: pre-wrap;
+  }
+
+  .student-print-footer {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    gap: 20px;
+    align-items: end;
+    margin-top: 28px;
+    break-inside: avoid;
+  }
+
+  .student-print-signature {
+    border-top: 1px solid #0f172a;
+    padding-top: 6px;
+    text-align: center;
+  }
 }

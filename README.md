@@ -1,83 +1,91 @@
 # EduControl.A.G.G - Sistema de Seguimiento Estudiantil e Incidencias
 
-EduControl.A.G.G es una plataforma web moderna e integrada diseñada para optimizar el seguimiento conductual, el control de asistencias, la gestión psicopedagógica y la emisión de alertas en instituciones educativas. Desarrollado con tecnologías de vanguardia, el sistema garantiza un entorno seguro, ágil y colaborativo para directivos, docentes, auxiliares y psicólogos.
+EduControl.A.G.G es una plataforma web para optimizar el seguimiento conductual, la gestion de incidencias y la emision de alertas en instituciones educativas. El sistema ofrece un entorno seguro y colaborativo para administradores, directivos, docentes y auxiliares.
 
 ---
 
-## 🚀 Arquitectura y Tecnologías
+## Arquitectura y Tecnologias
 
-El sistema utiliza un stack tecnológico robusto y escalable:
-
-*   **Frontend**: Next.js (React), TypeScript, Tailwind CSS, Shadcn UI.
-*   **Visualización**: Recharts para el análisis gráfico interactivo en tiempo real.
-*   **Backend & Base de Datos**: Supabase (PostgreSQL) para almacenamiento relacional y auditoría.
-*   **Autenticación**: Supabase Auth con sincronización automática de perfiles públicos.
-*   **Almacenamiento**: Supabase Storage (bucket `evidencias`) para el resguardo de evidencias multimedia (fotos tomadas desde la cámara o archivos cargados).
-*   **Seguridad**: Políticas a nivel de fila (Row Level Security - RLS) de Supabase para la protección estricta de la información (ej. confidencialidad de fichas psicológicas).
+* **Frontend**: Next.js, React, TypeScript, Tailwind CSS y Shadcn UI.
+* **Visualizacion**: Recharts para analisis grafico interactivo.
+* **Backend y Base de Datos**: Supabase con PostgreSQL.
+* **Autenticacion**: Supabase Auth con perfiles publicos sincronizados.
+* **Almacenamiento**: Supabase Storage, bucket `evidencias`, para fotos y archivos adjuntos.
+* **Seguridad**: Politicas Row Level Security de Supabase para controlar acceso por rol.
 
 ---
 
-## 🛠️ Instalación y Configuración Local
+## Instalacion y Configuracion Local
 
-Siga estos pasos para levantar el entorno de desarrollo localmente:
+1. Instalar dependencias:
 
-1.  **Instalar dependencias**:
-    ```powershell
-    npm install
-    ```
-2.  **Configurar Variables de Entorno**:
-    Cree o modifique el archivo `.env.local` en la raíz del proyecto agregando sus credenciales de Supabase:
-    ```env
-    NEXT_PUBLIC_SUPABASE_URL=https://<tu-proyecto>.supabase.co
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=<tu-anon-key>
-    ```
-3.  **Iniciar Servidor de Desarrollo**:
-    ```powershell
-    npm run dev
-    ```
-4.  **Acceso Web**:
-    Abra su navegador e ingrese a **`http://localhost:9002`**.
+```powershell
+npm install
+```
 
----
+2. Configurar `.env.local`:
 
-## 🔑 Matriz de Roles y Accesos
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://<tu-proyecto>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<tu-anon-key>
+```
 
-El sistema define 6 roles con permisos diferenciados que se autoevalúan en tiempo real:
+3. Iniciar servidor de desarrollo:
 
-1.  **Administrador**: Acceso completo a todos los módulos y gestión de la plataforma.
-2.  **Director / Subdirector**: Monitoreo global de alertas, reportes institucionales, asistencias y derivaciones disciplinarias.
-3.  **Psicólogo**: Acceso exclusivo al Gabinete Psicopedagógico, historial clínico y registro de sesiones confidenciales.
-4.  **Docente / Auxiliar**: Registro diario de asistencias/tardanzas y reporte de incidencias leves/moderadas de alumnos.
+```powershell
+npm run dev
+```
+
+4. Abrir `http://localhost:9002`.
 
 ---
 
-## 📦 Módulos del Sistema
+## Matriz de Roles
 
-### 1. Panel de Control (Dashboard)
-*   **Estadísticas Dinámicas**: Tarjetas con contadores en tiempo real de alertas activas, incidencias, inasistencias y tardanzas.
-*   **Análisis Visual**: Gráfico de líneas (flujo temporal de reportes de los últimos 7 días) y gráfico de dona (distribución por categorías de incidencias) usando `recharts`.
-*   **Alertas Prioritarias**: Listado dinámico de casos graves pendientes de atención.
+El sistema define 5 roles:
 
-### 2. Gestión de Alumnos (`/students`)
-*   **Buscador Avanzado**: Filtro debounced por DNI o nombres/apellidos y paginación real desde base de datos.
-*   **Ficha Detallada**: Visualización de la información de contacto, apoderado, nivel escolar e historial detallado de incidencias y asistencias del alumno.
+1. **Administrador**: Acceso completo a gestion de usuarios, alumnos, incidencias, alertas y reportes.
+2. **Director**: Monitoreo global de alertas, reportes institucionales y casos prioritarios.
+3. **Subdirector**: Gestion disciplinaria, seguimiento de incidencias y casos de atencion.
+4. **Docente**: Registro de incidencias y seguimiento de alumnos asignados por tutoria.
+5. **Auxiliar**: Registro operativo de incidencias, tardanzas e inasistencias reportadas como incidencias.
+
+---
+
+## Modulos del Sistema
+
+### 1. Panel de Control (`/dashboard`)
+
+* Paneles diferenciados por rol.
+* Indicadores de incidencias, alertas activas y casos prioritarios.
+* Graficos de flujo de reportes y distribucion por categorias.
+
+### 2. Gestion de Alumnos (`/students`)
+
+* Busqueda por DNI, nombres o apellidos.
+* Registro, edicion y ficha detallada del alumno.
+* Historial de incidencias, tardanzas e inasistencias registradas como reportes.
 
 ### 3. Reporte de Incidencias (`/incidents/new`)
-*   **Formulario Inteligente**: Selección del estudiante y tipo de reporte.
-*   **Refinador con IA (Google Gemini)**: Opción de optimizar y formalizar la redacción de la descripción mediante inteligencia artificial antes de guardar.
-*   **Carga de Evidencias**: Captura directa desde la cámara del dispositivo o carga de archivos locales directamente al bucket de Supabase.
 
-### 4. Automatización de Alertas (`/alerts`)
-*   **Alertas por Gravedad**: Si una incidencia se registra como "alta", se dispara una alerta roja dirigida a la dirección.
-*   **Alertas por Recurrencia**: Si un alumno acumula más de 3 incidencias en el mes actual, el sistema autogenera una alerta preventiva de riesgo.
+* Seleccion del estudiante y tipo de reporte.
+* Registro de fecha y hora del suceso.
+* Refinador con IA para formalizar la descripcion.
+* Carga de evidencias desde camara o archivos locales.
 
-### 5. Control de Asistencias (`/dashboard/asistencias`)
-*   **Filtro por Aula**: Carga dinámica de alumnos por Grado y Sección.
-*   **Control Diario**: Registro de estados (Presente, Falta, Tardanza, Justificado) con soporte de notas aclaratorias. Protección de clave única compuesta para evitar duplicidades.
+### 4. Alertas (`/alerts`)
 
-### 6. Reportes y Exportación (`/dashboard/reportes`)
-*   **KPIs en Tiempo Real**: Resumen numérico filtrable del rendimiento disciplinario.
-*   **Descargas**: Exportación de reportes listos en formato **CSV/Excel** y formato estilizado para **impresión en PDF**.
+* Alertas por gravedad cuando una incidencia se registra con severidad alta.
+* Alertas por recurrencia cuando un alumno acumula multiples incidencias.
+* Notificaciones en tiempo real para el rol Auxiliar.
 
-### 7. Registro de Auditoría (Logs)
-*   **Seguridad y Control**: El sistema documenta todas las acciones de modificación crítica (creación/edición de alumnos, registro de asistencia, sesiones clínicas) en la tabla `audit_logs` a través de un helper centralizado para control administrativo.
+### 5. Reportes (`/dashboard/reportes`)
+
+* Filtros por alumno, grado, seccion, tipo de incidencia, severidad y rango de fechas.
+* KPIs de incidencias, tardanzas e inasistencias.
+* Exportacion CSV e impresion/PDF.
+
+### 6. Auditoria
+
+* Registro de acciones criticas mediante `audit_logs`.
+* Trazabilidad para operaciones administrativas y disciplinarias.

@@ -49,6 +49,7 @@ export default function NewIncidentPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedStudentId = searchParams.get('studentId') || ""
+  const preselectedType = searchParams.get('tipo') || ""
   
   const { toast } = useToast()
   const { user, loading: isUserLoading } = useSupabaseAuth()
@@ -62,9 +63,12 @@ export default function NewIncidentPage() {
   const [isTranscribingImage, setIsTranscribingImage] = useState(false)
   const [description, setDescription] = useState("")
   const [selectedStudentId, setSelectedStudentId] = useState(preselectedStudentId)
-  const [type, setType] = useState("")
+  const [type, setType] = useState(preselectedType)
   const [severity, setSeverity] = useState("bajo")
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 16))
+  const [date, setDate] = useState(() => {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    return new Date(Date.now() - tzoffset).toISOString().slice(0, 16);
+  })
   const [openStudent, setOpenStudent] = useState(false)
   
   // Evidence states (Base64 URIs from camera/file reader)
@@ -107,6 +111,10 @@ export default function NewIncidentPage() {
   useEffect(() => {
     if (preselectedStudentId) setSelectedStudentId(preselectedStudentId)
   }, [preselectedStudentId])
+
+  useEffect(() => {
+    if (preselectedType) setType(preselectedType)
+  }, [preselectedType])
 
   // Camera permission and stream handling
   useEffect(() => {
@@ -385,6 +393,7 @@ export default function NewIncidentPage() {
       }
     }
 
+    const selectedDate = new Date(date)
     const incidentData = {
       alumno_id: selectedStudentId,
       alumno_nombre: studentName,
@@ -393,7 +402,8 @@ export default function NewIncidentPage() {
       tipo: type,
       descripcion: description,
       severidad: severity,
-      fecha: new Date(date).toISOString(),
+      fecha: selectedDate.toLocaleDateString('sv-SE'),
+      fecha_suceso: selectedDate.toISOString(),
       registrado_por: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Usuario',
       registrador_user_id: user.id,
       evidence_urls: uploadedUrls,
@@ -419,9 +429,9 @@ export default function NewIncidentPage() {
           tipo: 'Gravedad',
           nivel: 'rojo',
           mensaje: `Incidencia de gravedad alta reportada para ${studentName}: "${type}".`,
-          fecha: new Date().toISOString().slice(0, 10),
+          fecha: selectedDate.toLocaleDateString('sv-SE'),
           leido: false,
-          accion_requerida: 'Revisar expediente, citar a apoderado y derivar a Psicología.',
+          accion_requerida: 'Revisar el caso, registrar la intervención inicial y coordinar con el apoderado si corresponde.',
           estado: 'activa',
           destinatario: 'subdirector'
         }])
@@ -437,7 +447,7 @@ export default function NewIncidentPage() {
         .from('incidencias')
         .select('id')
         .eq('alumno_id', selectedStudentId)
-        .gte('fecha', startOfMonth.toISOString())
+        .gte('fecha', startOfMonth.toLocaleDateString('sv-SE'))
 
       const count = monthIncidents ? monthIncidents.length : 0
       if (count >= 3) {
@@ -448,9 +458,9 @@ export default function NewIncidentPage() {
           tipo: 'Recurrencia',
           nivel: 'rojo',
           mensaje: `El alumno ${studentName} acumula ${count} incidencias en el mes actual.`,
-          fecha: new Date().toISOString().slice(0, 10),
+          fecha: selectedDate.toLocaleDateString('sv-SE'),
           leido: false,
-          accion_requerida: 'Acción preventiva urgente: Evaluación disciplinaria por subdirector y citación familiar.',
+          accion_requerida: 'Revisar reincidencia, registrar seguimiento y coordinar citación familiar si corresponde.',
           estado: 'activa',
           destinatario: 'subdirector'
         }])
@@ -489,7 +499,7 @@ export default function NewIncidentPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800 font-headline">Nueva Incidencia</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100 font-headline">Nueva Incidencia</h2>
           <p className="text-muted-foreground">Registra un nuevo suceso para un alumno.</p>
         </div>
       </div>
@@ -527,7 +537,7 @@ export default function NewIncidentPage() {
                   <PopoverContent className="w-[calc(100vw-32px)] sm:w-[400px] p-0" align="start">
                     <Command
                       filter={(value, search) => {
-                        const student = students?.find(s => s.id === value);
+                        const student = students?.find(s => String(s.id) === value);
                         if (!student) return 0;
                         const matchString = `${student.nombres} ${student.apellidos} ${student.grado} ${student.seccion}`.toLowerCase();
                         return matchString.includes(search.toLowerCase()) ? 1 : 0;
@@ -539,10 +549,10 @@ export default function NewIncidentPage() {
                         <CommandGroup>
                           {students?.map((s) => (
                             <CommandItem
-                              key={s.id}
-                              value={s.id}
-                              onSelect={(currentValue) => {
-                                setSelectedStudentId(currentValue)
+                              key={String(s.id)}
+                              value={String(s.id)}
+                              onSelect={() => {
+                                setSelectedStudentId(s.id)
                                 setOpenStudent(false)
                               }}
                             >
@@ -597,14 +607,14 @@ export default function NewIncidentPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="date">Fecha del Suceso</Label>
+                <Label htmlFor="date">Fecha y Hora del Suceso</Label>
                 <Input 
                   id="date" 
                   type="datetime-local" 
-                  required 
                   value={date} 
                   onChange={(e) => setDate(e.target.value)}
                 />
+                <p className="text-[10px] text-muted-foreground">La fecha y hora del suceso se guardarán en el sistema (editable).</p>
               </div>
             </div>
 

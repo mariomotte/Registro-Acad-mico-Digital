@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { getUserAvatar } from "@/lib/avatar"
+import { LogOut } from "lucide-react"
 
 function getRoleLabel(role: string): string {
   switch (role) {
@@ -24,7 +25,6 @@ function getRoleLabel(role: string): string {
     case 'subdirector': return 'Subdirector';
     case 'docente': return 'Docente';
     case 'auxiliar': return 'Auxiliar';
-    case 'psicologo': return 'Psicólogo';
     default: return role;
   }
 }
@@ -71,8 +71,9 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleSignOut}>
-          Cerrar Sesión
+        <DropdownMenuItem className="cursor-pointer bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200 focus:bg-red-600 focus:text-white" onClick={handleSignOut}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Cerrar Sesion
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

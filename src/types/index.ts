@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'director' | 'subdirector' | 'docente' | 'auxiliar' | 'psicologo';
+export type UserRole = 'admin' | 'director' | 'subdirector' | 'docente' | 'auxiliar';
 
 export interface Usuario {
   id: string;
@@ -10,20 +10,24 @@ export interface Usuario {
   createdAt?: any;
   sexo?: 'M' | 'F';
   avatar_url?: string;
+  tutor_grado?: string;
+  tutor_seccion?: string;
+  tutor_nivel?: 'Secundaria';
+  tutor_anio_escolar?: number;
 }
 
 export interface Alumno {
   id: string;
   nombres: string;
   apellidos: string;
-  dni: string;
-  codigo_estudiante: string;
+  dni?: string | null;
+  codigo_estudiante?: string | null;
   grado: string;
   nivel: 'Primaria' | 'Secundaria';
   seccion: string;
   estado: 'Activo' | 'Inactivo' | 'Suspendido';
-  apoderado: string;
-  telefono: string;
+  apoderado?: string | null;
+  telefono?: string | null;
   fecha_nacimiento?: string;
   fechaNacimiento?: string; // Compatibilidad
   created_at?: string;
@@ -48,6 +52,7 @@ export interface Incidencia {
   severidad: Severity;
   gravedad?: Severity; // Compatibilidad
   fecha: string;
+  fecha_suceso?: string;
   hora?: string;
   registradoPor: string;
   registradorUserId?: string;
@@ -72,17 +77,14 @@ export interface Alerta {
   destinatario?: string;
 }
 
-export interface SesionPsicologica {
-  id: string;
+export interface CasoPrioritario {
   alumnoId: string;
-  alumnoNombre?: string;
-  psicologoId: string;
-  incidenciaId?: string;
-  fecha: string;
-  motivo: string;
-  observaciones: string;
-  recomendaciones: string;
-  acuerdos?: string; // Compatibilidad
-  clasificacion: 'Leve' | 'Moderado' | 'Crítico';
-  estado?: 'en_seguimiento' | 'completada';
+  alumnoNombre: string;
+  grado: string;
+  seccion: string;
+  prioridad: 'alta' | 'media' | 'baja';
+  nivel: 'verde' | 'amarillo' | 'rojo';
+  motivos: string[];
+  ultimaFecha: string;
+  incidenciasRelacionadas: Incidencia[];
 }

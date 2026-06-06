@@ -81,16 +81,16 @@ export function NotificationsNav() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative text-slate-500 hover:bg-slate-100 transition-colors">
+        <Button variant="ghost" size="icon" className="relative text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
           <Bell size={20} />
           {unreadCount > 0 && (
-            <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white animate-pulse" />
+            <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white dark:border-slate-900 animate-pulse" />
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0 shadow-xl border-none" align="end">
-        <div className="flex items-center justify-between p-4 border-b bg-slate-50/50 rounded-t-lg">
-          <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+      <PopoverContent className="w-80 p-0 shadow-xl border border-border" align="end">
+        <div className="flex items-center justify-between p-4 border-b bg-slate-50/50 dark:bg-slate-900/70 rounded-t-lg">
+          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
             Notificaciones
             {unreadCount > 0 && <span className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded-full">{unreadCount} nuevas</span>}
           </h3>
@@ -111,7 +111,7 @@ export function NotificationsNav() {
                   key={alert.id} 
                   href={user?.role === 'docente' ? `/alerts` : `/students/${alert.alumno_id || alert.alumnoId}`}
                   className={cn(
-                    "flex gap-3 p-4 border-b hover:bg-slate-50 transition-colors last:border-0",
+                    "flex gap-3 p-4 border-b hover:bg-slate-50 dark:hover:bg-white/5 transition-colors last:border-0",
                     !alert.leido && "bg-primary/5"
                   )}
                 >
@@ -119,8 +119,8 @@ export function NotificationsNav() {
                     {getAlertIcon(alert.nivel)}
                   </div>
                   <div className="space-y-1 overflow-hidden">
-                    <p className="text-xs font-bold text-slate-900 truncate">{alert.alumno_nombre || alert.alumnoNombre}</p>
-                    <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{alert.alumno_nombre || alert.alumnoNombre}</p>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
                       {alert.mensaje}
                     </p>
                     <p className="text-[10px] text-slate-400">
@@ -137,8 +137,8 @@ export function NotificationsNav() {
             </div>
           )}
         </ScrollArea>
-        <div className="p-2 bg-slate-50 rounded-b-lg border-t">
-          <Button variant="ghost" size="sm" className="w-full text-xs text-slate-500 hover:text-primary" asChild>
+        <div className="p-2 bg-slate-50 dark:bg-slate-900/70 rounded-b-lg border-t">
+          <Button variant="ghost" size="sm" className="w-full text-xs text-slate-500 dark:text-slate-300 hover:text-primary" asChild>
             <Link href="/alerts">
               Panel de control de alertas <ArrowRight size={12} className="ml-1" />
             </Link>

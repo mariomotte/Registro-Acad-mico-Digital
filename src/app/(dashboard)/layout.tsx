@@ -50,17 +50,14 @@ export default function DashboardLayout({
     let isRestricted = false;
     
     if (pathname.startsWith('/users')) {
-      // Solo admin y director
-      isRestricted = role !== 'admin' && role !== 'director';
+      // Solo admin, director y subdirector
+      isRestricted = role !== 'admin' && role !== 'director' && role !== 'subdirector';
     } else if (pathname.startsWith('/dashboard/reportes')) {
-      // Solo admin y director
-      isRestricted = role !== 'admin' && role !== 'director';
+      // Solo admin, director y subdirector
+      isRestricted = role !== 'admin' && role !== 'director' && role !== 'subdirector';
     } else if (pathname.startsWith('/students/new') || pathname.endsWith('/edit')) {
       // Solo admin, director y subdirector pueden crear o editar estudiantes
       isRestricted = role !== 'admin' && role !== 'director' && role !== 'subdirector';
-    } else if (pathname.startsWith('/dashboard/asistencias')) {
-      // Todos menos psicólogo
-      isRestricted = role === 'psicologo';
     }
     
     if (isRestricted) {
@@ -72,6 +69,37 @@ export default function DashboardLayout({
       router.push("/dashboard");
     }
   }, [user, pathname, router, toast]);
+
+  // Suscripción Realtime para alertas del Auxiliar
+  useEffect(() => {
+    if (!user || user.role !== 'auxiliar') return;
+
+    const channel = supabase
+      .channel('realtime-alerts-auxiliar')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'alertas'
+        },
+        (payload) => {
+          const newAlert = payload.new;
+          if (newAlert) {
+            toast({
+              title: "Nueva alerta generada",
+              description: "Revisar alerta pendiente",
+              variant: "default",
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, toast]);
 
   if (loading) {
     return (
@@ -94,7 +122,7 @@ export default function DashboardLayout({
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <SidebarInset className="flex-1 bg-background">
-          <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/40 bg-background/50 px-6 backdrop-blur-md">
+          <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/40 bg-background/70 px-6 backdrop-blur-md dark:border-slate-700/70 dark:bg-[#121b2b]/95">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
               <h1 className="text-xl font-bold font-headline text-slate-800 dark:text-slate-100">EduControl.A.G.G</h1>

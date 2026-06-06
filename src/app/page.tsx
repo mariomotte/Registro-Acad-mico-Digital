@@ -21,13 +21,6 @@ export default function Home() {
   }, [user, isUserLoading, router])
 
   // Fallback de seguridad: Si tarda más de 2 segundos en cargar, redirigir al login
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      router.replace("/login")
-    }, 2000)
-    return () => clearTimeout(timer)
-  }, [router])
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="flex flex-col items-center gap-3">
