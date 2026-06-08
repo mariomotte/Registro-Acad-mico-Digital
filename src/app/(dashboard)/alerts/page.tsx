@@ -17,11 +17,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { summarizeStudentAlerts } from "@/ai/flows/summarize-student-alerts"
+import ExcelJS from "exceljs"
 import {
   ResponsiveContainer,
-  RadialBarChart,
-  RadialBar,
-  PolarAngleAxis,
   BarChart,
   Bar,
   XAxis,
@@ -47,22 +45,21 @@ export default function AlertsPage() {
   const unreadAlerts = alerts.filter(a => !a.leido)
   const redAlerts = alerts.filter(a => a.nivel === "rojo")
   const attendedAlerts = alerts.filter(a => a.leido)
+  const studentsById = students.reduce((acc: Record<string, any>, student) => {
+    acc[String(student.id)] = student
+    return acc
+  }, {})
   const riskSummary = Object.values(
     alerts.reduce((acc: any, alert) => {
-      const id = alert.alumnoId || alert.alumnoNombre
-      acc[id] = acc[id] || { alumnoId: alert.alumnoId, alumnoNombre: alert.alumnoNombre, rojo: 0, amarillo: 0, verde: 0, total: 0, score: 0 }
-      acc[id][alert.nivel] = (acc[id][alert.nivel] || 0) + 1
-      acc[id].total += 1
-      acc[id].score += alert.nivel === "rojo" ? 5 : alert.nivel === "amarillo" ? 3 : 1
+      const student = studentsById[String(alert.alumnoId)]
+      const grade = student?.grado || "Sin grado"
+      acc[grade] = acc[grade] || { grado: grade, rojo: 0, amarillo: 0, verde: 0, total: 0, score: 0 }
+      acc[grade][alert.nivel] = (acc[grade][alert.nivel] || 0) + 1
+      acc[grade].total += 1
+      acc[grade].score += alert.nivel === "rojo" ? 5 : alert.nivel === "amarillo" ? 3 : 1
       return acc
     }, {})
   ).sort((a: any, b: any) => b.score - a.score).slice(0, 6)
-
-  const riskGaugeData = [
-    { name: "Rojas", value: redAlerts.length, fill: "#e11d48" },
-    { name: "Pendientes", value: unreadAlerts.length, fill: "#f59e0b" },
-    { name: "Atendidas", value: attendedAlerts.length, fill: "#0f766e" },
-  ]
 
   useEffect(() => {
     let mounted = true;
@@ -270,6 +267,189 @@ export default function AlertsPage() {
     setIsExportDialogOpen(false);
   }
 
+  const getLogoDataUrl = async () => {
+    const response = await fetch("/logo.png")
+    const blob = await response.blob()
+
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(String(reader.result))
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  const handleExportXlsx = async () => {
+    const now = new Date()
+    let filteredAlerts = alerts
+    let periodText = "Todos los registros"
+
+    if (exportPeriod === "semanal") {
+      const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      filteredAlerts = alerts.filter(a => new Date(a.fecha) >= lastWeek)
+      periodText = "Semanal"
+    } else if (exportPeriod === "mensual") {
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+      filteredAlerts = alerts.filter(a => new Date(a.fecha) >= lastMonth)
+      periodText = "Mensual"
+    }
+
+    const severityOrder: Record<string, number> = { rojo: 1, amarillo: 2, verde: 3 }
+    const rows = filteredAlerts.map(alert => {
+      const student = students.find(s => s.id === alert.alumnoId)
+      const studentIncidences = incidences.filter(i => i.alumnoId === alert.alumnoId)
+
+      let periodIncidences = studentIncidences
+      if (exportPeriod === "semanal") {
+        const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        periodIncidences = studentIncidences.filter(i => new Date(i.fecha) >= lastWeek)
+      } else if (exportPeriod === "mensual") {
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+        periodIncidences = studentIncidences.filter(i => new Date(i.fecha) >= lastMonth)
+      }
+
+      const faltas = periodIncidences.filter(i => i.tipo === "Inasistencia").length
+      const tardanzas = periodIncidences.filter(i => i.tipo === "Tardanza").length
+      const otras = periodIncidences.length - faltas - tardanzas
+
+      return {
+        alumno: alert.alumnoNombre,
+        grado: student?.grado || "N/A",
+        seccion: student?.seccion || "N/A",
+        gradoSeccion: student ? `${student.grado} - ${student.seccion}` : "N/A",
+        faltas,
+        tardanzas,
+        otras,
+        total: periodIncidences.length,
+        motivo: alert.mensaje,
+        nivel: alert.nivel,
+        fecha: formatFecha(alert.fecha, "full"),
+        periodo: periodText,
+      }
+    }).sort((a, b) => {
+      const severityDiff = (severityOrder[a.nivel] || 99) - (severityOrder[b.nivel] || 99)
+      if (severityDiff !== 0) return severityDiff
+      const gradeDiff = String(a.grado).localeCompare(String(b.grado), "es", { numeric: true })
+      if (gradeDiff !== 0) return gradeDiff
+      const sectionDiff = String(a.seccion).localeCompare(String(b.seccion), "es", { numeric: true })
+      if (sectionDiff !== 0) return sectionDiff
+      return String(a.alumno).localeCompare(String(b.alumno), "es")
+    })
+
+    if (rows.length === 0) {
+      setIsExportDialogOpen(false)
+      return
+    }
+
+    const workbook = new ExcelJS.Workbook()
+    workbook.creator = "EduControl.A.G.G"
+    workbook.created = now
+    const worksheet = workbook.addWorksheet("Seguimiento prioritario", {
+      views: [{ state: "frozen", ySplit: 5 }],
+      pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    })
+
+    worksheet.columns = [
+      { key: "n", width: 12 },
+      { key: "alumno", width: 30 },
+      { key: "gradoSeccion", width: 14 },
+      { key: "faltas", width: 10 },
+      { key: "tardanzas", width: 12 },
+      { key: "otras", width: 16 },
+      { key: "total", width: 12 },
+      { key: "nivel", width: 14 },
+      { key: "fecha", width: 20 },
+      { key: "motivo", width: 56 },
+      { key: "periodo", width: 18 },
+    ]
+
+    try {
+      const logoDataUrl = await getLogoDataUrl()
+      const logoId = workbook.addImage({ base64: logoDataUrl, extension: "png" })
+      worksheet.addImage(logoId, { tl: { col: 0.25, row: 0.35 }, ext: { width: 54, height: 54 } })
+    } catch (error) {
+      console.warn("No se pudo insertar el logo en el XLSX", error)
+    }
+
+    worksheet.mergeCells("B1:K1")
+    worksheet.mergeCells("B2:K2")
+    worksheet.mergeCells("B3:K3")
+    worksheet.getCell("B1").value = "I.E. A.G.G - Seguimiento Prioritario"
+    worksheet.getCell("B2").value = "Reporte de alumnos en alerta"
+    worksheet.getCell("B3").value = `Periodo: ${periodText} | Generado: ${format(now, "dd/MM/yyyy HH:mm")}`
+    ;["B1", "B2", "B3"].forEach((cell, index) => {
+      worksheet.getCell(cell).font = { bold: true, size: index === 0 ? 16 : 11, color: { argb: index === 0 ? "FF0F172A" : "FF475569" } }
+      worksheet.getCell(cell).alignment = { horizontal: "left", vertical: "middle" }
+    })
+
+    worksheet.getRow(5).values = ["N°", "Alumno", "Grado/Seccion", "Faltas", "Tardanzas", "Otras incidencias", "Total", "Nivel", "Fecha alerta", "Motivo de alerta", "Periodo"]
+    worksheet.getRow(5).height = 24
+    worksheet.getRow(5).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A8A" } }
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true }
+      cell.border = {
+        top: { style: "thin", color: { argb: "FF93C5FD" } },
+        left: { style: "thin", color: { argb: "FF93C5FD" } },
+        bottom: { style: "thin", color: { argb: "FF93C5FD" } },
+        right: { style: "thin", color: { argb: "FF93C5FD" } },
+      }
+    })
+
+    rows.forEach((row, index) => {
+      const excelRow = worksheet.addRow({
+        n: index + 1,
+        alumno: row.alumno,
+        gradoSeccion: row.gradoSeccion,
+        faltas: row.faltas,
+        tardanzas: row.tardanzas,
+        otras: row.otras,
+        total: row.total,
+        nivel: row.nivel?.toUpperCase(),
+        fecha: row.fecha,
+        motivo: row.motivo,
+        periodo: row.periodo,
+      })
+      const nivelCell = excelRow.getCell("nivel")
+      const levelColor = row.nivel === "rojo" ? "FFFEE2E2" : row.nivel === "amarillo" ? "FFFEF3C7" : "FFDCFCE7"
+      const levelText = row.nivel === "rojo" ? "FF991B1B" : row.nivel === "amarillo" ? "FF92400E" : "FF166534"
+      nivelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: levelColor } }
+      nivelCell.font = { bold: true, color: { argb: levelText } }
+
+      excelRow.eachCell((cell) => {
+        cell.alignment = { vertical: "middle", wrapText: true }
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFE2E8F0" } },
+          left: { style: "thin", color: { argb: "FFE2E8F0" } },
+          bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+          right: { style: "thin", color: { argb: "FFE2E8F0" } },
+        }
+      })
+      excelRow.getCell("n").alignment = { horizontal: "center", vertical: "middle" }
+      excelRow.getCell("gradoSeccion").alignment = { horizontal: "center", vertical: "middle" }
+      ;["faltas", "tardanzas", "otras", "total"].forEach((key) => {
+        excelRow.getCell(key).alignment = { horizontal: "center", vertical: "middle" }
+      })
+    })
+
+    worksheet.autoFilter = "A5:K5"
+    worksheet.getRow(1).height = 24
+    worksheet.getRow(2).height = 22
+    worksheet.getRow(3).height = 22
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `seguimiento_prioritario_${exportPeriod}_${format(now, "yyyyMMdd")}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    setIsExportDialogOpen(false)
+  }
+
   const generateSummary = async (alumnoId: string, alumnoNombre: string, motivoAlerta: string) => {
     setIsSummarizing(prev => ({ ...prev, [alumnoId]: true }));
     try {
@@ -369,7 +549,7 @@ export default function AlertsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleExportExcel} className="bg-emerald-600 hover:bg-emerald-700">Descargar CSV</Button>
+              <Button onClick={handleExportXlsx} className="bg-emerald-600 hover:bg-emerald-700">Descargar XLSX</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -410,7 +590,7 @@ export default function AlertsPage() {
         <Card className="border-slate-900/10 bg-slate-900 text-white shadow-sm">
           <CardContent className="p-5">
             <div className="flex items-center justify-between text-white/80">
-              <span className="text-xs font-black uppercase">Alumnos en radar</span>
+              <span className="text-xs font-black uppercase">Grados en radar</span>
               <AlertTriangle size={18} />
             </div>
             <p className="mt-2 text-3xl font-black">{riskSummary.length}</p>
@@ -419,27 +599,11 @@ export default function AlertsPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-        <Card className="overflow-hidden border-amber-900/10 bg-surface-container-lowest shadow-sm dark:border-white/10">
-          <CardContent className="h-72 p-6">
-            <div className="mb-3">
-              <h3 className="text-sm font-black uppercase tracking-wide text-slate-800 dark:text-slate-100">Pulso de atención</h3>
-              <p className="text-xs font-semibold text-slate-500">Volumen de alertas por estado de respuesta.</p>
-            </div>
-            <ResponsiveContainer width="100%" height="78%">
-              <RadialBarChart innerRadius="30%" outerRadius="100%" data={riskGaugeData} startAngle={90} endAngle={-270}>
-                <PolarAngleAxis type="number" domain={[0, Math.max(alerts.length, 1)]} tick={false} />
-                <RadialBar dataKey="value" cornerRadius={12} background />
-                <Tooltip contentStyle={{ borderRadius: 12 }} />
-              </RadialBarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
+      <div>
         <Card className="overflow-hidden border-rose-900/10 bg-surface-container-lowest shadow-sm dark:border-white/10">
           <CardContent className="h-72 p-6">
             <div className="mb-3">
-              <h3 className="text-sm font-black uppercase tracking-wide text-slate-800 dark:text-slate-100">Ranking de alumnos en riesgo</h3>
+              <h3 className="text-sm font-black uppercase tracking-wide text-slate-800 dark:text-slate-100">Ranking de grados en riesgo</h3>
               <p className="text-xs font-semibold text-slate-500">Puntaje ponderado: rojo 5, amarillo 3, verde 1.</p>
             </div>
             {riskSummary.length > 0 ? (
@@ -447,13 +611,13 @@ export default function AlertsPage() {
                 <BarChart data={riskSummary} layout="vertical" margin={{ top: 4, right: 18, left: 16, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#fee2e2" />
                   <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="alumnoNombre" width={160} tick={{ fontSize: 11, fontWeight: 700 }} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="grado" width={110} tick={{ fontSize: 12, fontWeight: 800 }} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #fecdd3" }} />
                   <Bar dataKey="score" name="Puntaje" fill="#e11d48" radius={[3, 10, 10, 3]} barSize={18} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-48 items-center justify-center text-sm font-semibold text-slate-400">Sin alumnos en riesgo</div>
+              <div className="flex h-48 items-center justify-center text-sm font-semibold text-slate-400">Sin grados en riesgo</div>
             )}
           </CardContent>
         </Card>

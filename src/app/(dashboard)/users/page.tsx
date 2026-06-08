@@ -77,6 +77,13 @@ function getRoleLabel(role: string): string {
   }
 }
 
+const MANAGEABLE_ROLE_OPTIONS: Array<{ value: UserRole; label: string }> = [
+  { value: 'director', label: 'Director' },
+  { value: 'subdirector', label: 'Subdirector' },
+  { value: 'docente', label: 'Docente' },
+  { value: 'auxiliar', label: 'Auxiliar' },
+]
+
 export default function UsersManagementPage() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
   const { toast } = useToast()
@@ -234,6 +241,8 @@ export default function UsersManagementPage() {
   }, [user, isUserLoading]);
 
   const filteredUsers = users.filter((u) => {
+    if (u.role === 'admin') return false;
+
     const searchLower = searchTerm.toLowerCase();
     const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
     return fullName.includes(searchLower) || u.email.toLowerCase().includes(searchLower);
@@ -765,11 +774,9 @@ export default function UsersManagementPage() {
                       <SelectValue placeholder="Seleccione un rol" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">Administrador</SelectItem>
-                      <SelectItem value="director">Director</SelectItem>
-                      <SelectItem value="subdirector">Subdirector</SelectItem>
-                      <SelectItem value="docente">Docente</SelectItem>
-                      <SelectItem value="auxiliar">Auxiliar</SelectItem>
+                      {MANAGEABLE_ROLE_OPTIONS.map((role) => (
+                        <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -905,11 +912,9 @@ export default function UsersManagementPage() {
                       <SelectValue placeholder="Seleccione un rol" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">Administrador</SelectItem>
-                      <SelectItem value="director">Director</SelectItem>
-                      <SelectItem value="subdirector">Subdirector</SelectItem>
-                      <SelectItem value="docente">Docente</SelectItem>
-                      <SelectItem value="auxiliar">Auxiliar</SelectItem>
+                      {MANAGEABLE_ROLE_OPTIONS.map((role) => (
+                        <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1056,11 +1061,9 @@ export default function UsersManagementPage() {
                           <SelectValue placeholder="Seleccionar Rol" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="admin">Administrador</SelectItem>
-                          <SelectItem value="director">Director</SelectItem>
-                          <SelectItem value="subdirector">Subdirector</SelectItem>
-                          <SelectItem value="docente">Docente</SelectItem>
-                          <SelectItem value="auxiliar">Auxiliar</SelectItem>
+                          {MANAGEABLE_ROLE_OPTIONS.map((role) => (
+                            <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       {u.role === 'docente' && u.tutor_grado && u.tutor_seccion && (

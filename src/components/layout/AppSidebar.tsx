@@ -11,7 +11,8 @@ import {
   Bell, 
   LogOut,
   ShieldCheck,
-  BarChart3
+  BarChart3,
+  Settings
 } from "lucide-react"
 
 import {
@@ -55,6 +56,10 @@ export function AppSidebar() {
     menuItems.push({ name: "Accesos y Roles", icon: ShieldCheck, path: "/users", tone: "violet" });
   }
 
+  if (user?.role === 'admin') {
+    menuItems.push({ name: "Configuraciones", icon: Settings, path: "/configuraciones", tone: "emerald" });
+  }
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push("/login")
@@ -68,6 +73,7 @@ export function AppSidebar() {
       amber: isActive ? "bg-amber-300/18 text-white shadow-sm ring-1 ring-amber-200/25" : "text-blue-50/88 hover:bg-amber-300/10 hover:text-white",
       indigo: isActive ? "bg-sky-400/16 text-white shadow-sm ring-1 ring-sky-300/20" : "text-blue-50/88 hover:bg-sky-400/10 hover:text-white",
       violet: isActive ? "bg-violet-400/16 text-white shadow-sm ring-1 ring-violet-300/20" : "text-blue-50/88 hover:bg-violet-400/10 hover:text-white",
+      emerald: isActive ? "bg-emerald-400/16 text-white shadow-sm ring-1 ring-emerald-300/20" : "text-blue-50/88 hover:bg-emerald-400/10 hover:text-white",
     }
     return tones[tone] || tones.slate
   }
@@ -80,6 +86,7 @@ export function AppSidebar() {
       amber: isActive ? "bg-amber-300 text-slate-950" : "bg-amber-300/18 text-amber-100",
       indigo: isActive ? "bg-sky-300 text-slate-950" : "bg-sky-300/16 text-sky-100",
       violet: isActive ? "bg-violet-300 text-slate-950" : "bg-violet-300/16 text-violet-100",
+      emerald: isActive ? "bg-emerald-300 text-slate-950" : "bg-emerald-300/16 text-emerald-100",
     }
     return tones[tone] || tones.slate
   }
@@ -115,10 +122,10 @@ export function AppSidebar() {
                 asChild 
                 isActive={isActive}
                 tooltip={item.name}
-                className={cn("relative py-6 transition-colors duration-200", getToneClasses(item.tone, isActive))}
+                className={cn("relative py-6 transition-all duration-200 hover:translate-x-1", getToneClasses(item.tone, isActive))}
               >
                 <Link href={item.path} className="flex items-center gap-3">
-                  <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors", getIconToneClasses(item.tone, isActive))}>
+                  <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200", getIconToneClasses(item.tone, isActive))}>
                     <item.icon size={16} />
                   </span>
                   <span className="font-medium">{item.name}</span>

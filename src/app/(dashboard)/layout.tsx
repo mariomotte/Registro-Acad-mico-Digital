@@ -52,6 +52,9 @@ export default function DashboardLayout({
     if (pathname.startsWith('/users')) {
       // Solo admin, director y subdirector
       isRestricted = role !== 'admin' && role !== 'director' && role !== 'subdirector';
+    } else if (pathname.startsWith('/configuraciones')) {
+      // Solo admin
+      isRestricted = role !== 'admin';
     } else if (pathname.startsWith('/dashboard/reportes')) {
       // Solo admin, director y subdirector
       isRestricted = role !== 'admin' && role !== 'director' && role !== 'subdirector';
@@ -133,8 +136,13 @@ export default function DashboardLayout({
               <UserNav />
             </div>
           </header>
-          <main className="p-6 lg:p-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            {children}
+          <main className="p-6 lg:p-10">
+            <div
+              key={pathname}
+              className="animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out"
+            >
+              {children}
+            </div>
           </main>
         </SidebarInset>
       </div>

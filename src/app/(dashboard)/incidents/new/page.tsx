@@ -122,14 +122,29 @@ export default function NewIncidentPage() {
 
     const getCameraPermission = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
         setHasCameraPermission(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
       } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          setHasCameraPermission(true);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (fallbackError) {
+          console.error('Error accessing camera:', fallbackError);
+          setHasCameraPermission(false);
+        }
       }
     };
 
@@ -505,9 +520,9 @@ export default function NewIncidentPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <Card className="border-none shadow-md">
-          <CardHeader className="bg-slate-50 border-b">
-            <CardTitle className="text-lg flex items-center gap-2">
+        <Card className="border border-slate-200/70 bg-white shadow-md dark:border-white/10 dark:bg-slate-900/70">
+          <CardHeader className="border-b border-slate-200/70 bg-slate-50/80 dark:border-white/10 dark:bg-slate-950/45">
+            <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-slate-100">
               <ClipboardList size={20} className="text-primary" />
               Detalles del Reporte
             </CardTitle>
@@ -675,7 +690,7 @@ export default function NewIncidentPage() {
               </div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 {evidences.map((src, index) => (
-                  <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border bg-slate-100">
+                  <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-slate-950">
                     <img src={src} alt={`Evidencia ${index + 1}`} className="w-full h-full object-cover" />
                     <button 
                       type="button"
@@ -687,12 +702,12 @@ export default function NewIncidentPage() {
                   </div>
                 ))}
                 
-                <div onClick={() => setIsCameraOpen(true)} className="border-2 border-dashed rounded-lg aspect-square flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 text-muted-foreground hover:text-primary">
+                <div onClick={() => setIsCameraOpen(true)} className="border-2 border-dashed border-slate-300 rounded-lg aspect-square flex flex-col items-center justify-center cursor-pointer text-muted-foreground transition-colors hover:bg-slate-50 hover:text-primary dark:border-white/15 dark:hover:bg-white/5">
                   <Camera size={20} />
                   <span className="text-[10px] mt-1 font-semibold uppercase">Capturar</span>
                 </div>
                 
-                <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed rounded-lg aspect-square flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 text-muted-foreground hover:text-primary">
+                <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-slate-300 rounded-lg aspect-square flex flex-col items-center justify-center cursor-pointer text-muted-foreground transition-colors hover:bg-slate-50 hover:text-primary dark:border-white/15 dark:hover:bg-white/5">
                   <Upload size={20} />
                   <span className="text-[10px] mt-1 font-semibold uppercase">Subir</span>
                 </div>
@@ -701,7 +716,7 @@ export default function NewIncidentPage() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="bg-slate-50 border-t py-4 flex justify-between">
+          <CardFooter className="border-t border-slate-200/70 bg-slate-50/80 py-4 flex justify-between dark:border-white/10 dark:bg-slate-950/45">
             <Button variant="outline" type="button" onClick={() => router.back()}>Cancelar</Button>
             <Button type="submit" className="bg-primary" disabled={isLoading || !user}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
