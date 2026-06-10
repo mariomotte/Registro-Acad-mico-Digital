@@ -382,6 +382,7 @@ export default function NewIncidentPage() {
 
     // 1. Upload files/blobs to Supabase Storage bucket 'evidencias'
     const uploadedUrls: string[] = []
+    const uploadErrors: string[] = []
     for (let i = 0; i < evidences.length; i++) {
       const dataUri = evidences[i]
       try {
@@ -403,9 +404,22 @@ export default function NewIncidentPage() {
           .getPublicUrl(fileName)
           
         uploadedUrls.push(publicUrl)
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error uploading evidence:", err)
+        uploadErrors.push(err?.message || "No se pudo subir una evidencia.")
       }
+    }
+
+    if (uploadErrors.length > 0) {
+      toast({
+        variant: "destructive",
+        title: "No se pudieron subir las evidencias",
+        description: uploadErrors.some(message => message.toLowerCase().includes("bucket not found"))
+          ? "Falta crear el bucket de Supabase Storage llamado evidencias."
+          : "Revisa la conexión o permisos de Storage e intenta guardar nuevamente.",
+      })
+      setIsLoading(false)
+      return
     }
 
     const selectedDate = new Date(date)
@@ -435,12 +449,29 @@ export default function NewIncidentPage() {
       
       const newIncidentId = insertedIncidents?.[0]?.id
 
+      const { error: auxiliaryAlertError } = await supabase.from('alertas').insert([{
+        alumno_id: selectedStudentId,
+        alumno_nombre: studentName,
+        incidencia_id: newIncidentId,
+        titulo: 'Nuevo reporte registrado',
+        tipo: 'Reporte',
+        nivel: severity === 'alto' ? 'rojo' : severity === 'medio' ? 'amarillo' : 'verde',
+        mensaje: `Nuevo reporte para ${studentName}: "${type}".`,
+        fecha: selectedDate.toISOString(),
+        leido: false,
+        accion_requerida: 'Revisar el reporte registrado y dar seguimiento si corresponde.',
+        estado: 'activa',
+        destinatario: 'auxiliar'
+      }])
+      if (auxiliaryAlertError) console.error("Error inserting auxiliary report alert:", auxiliaryAlertError)
+
       // 3. Automated Alert Level: Gravity Check
       if (severity === 'alto') {
         const { error: alertError } = await supabase.from('alertas').insert([{
           alumno_id: selectedStudentId,
           alumno_nombre: studentName,
           incidencia_id: newIncidentId,
+          titulo: 'Incidencia de gravedad alta',
           tipo: 'Gravedad',
           nivel: 'rojo',
           mensaje: `Incidencia de gravedad alta reportada para ${studentName}: "${type}".`,
@@ -470,6 +501,7 @@ export default function NewIncidentPage() {
           alumno_id: selectedStudentId,
           alumno_nombre: studentName,
           incidencia_id: newIncidentId,
+          titulo: 'Reincidencia detectada',
           tipo: 'Recurrencia',
           nivel: 'rojo',
           mensaje: `El alumno ${studentName} acumula ${count} incidencias en el mes actual.`,

@@ -22,6 +22,7 @@ export function NotificationsNav() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
   const [isMounted, setIsMounted] = useState(false)
   const [alerts, setAlerts] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -33,16 +34,24 @@ export function NotificationsNav() {
     async function loadAlerts() {
       if (!user) return;
       try {
-        const { data, error } = await supabase
-          .from('alertas')
-          .select('id, leido, nivel, alumno_id, alumno_nombre, mensaje, fecha')
-          .order('fecha', { ascending: false })
-          .limit(5);
+        const [alertsRes, unreadRes] = await Promise.all([
+          supabase
+            .from('alertas')
+            .select('id, leido, nivel, alumno_id, alumno_nombre, mensaje, fecha, titulo, destinatario')
+            .order('fecha', { ascending: false })
+            .limit(5),
+          supabase
+            .from('alertas')
+            .select('id', { count: 'exact', head: true })
+            .eq('leido', false)
+        ]);
         
-        if (error) throw error;
+        if (alertsRes.error) throw alertsRes.error;
+        if (unreadRes.error) throw unreadRes.error;
         
-        if (data && mounted) {
-          setAlerts(data);
+        if (mounted) {
+          setAlerts(alertsRes.data || []);
+          setUnreadCount(unreadRes.count || 0);
         }
       } catch (err) {
         console.error("Error fetching alerts", err);
@@ -58,7 +67,43 @@ export function NotificationsNav() {
     return () => { mounted = false; };
   }, [user, isUserLoading]);
 
-  const unreadCount = alerts?.filter(a => !a.leido).length || 0
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('notifications-nav-alerts')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'alertas'
+        },
+        (payload) => {
+          const newAlert = payload.new;
+          const recipient = String(newAlert?.destinatario || '').toLowerCase();
+          const currentRole = user.role.toLowerCase();
+          const currentEmail = user.email.toLowerCase();
+          const isForCurrentUser = !recipient || recipient === currentRole || recipient === currentEmail;
+
+          if (!newAlert || !isForCurrentUser) return;
+
+          setAlerts((prev) => {
+            if (prev.some((alert) => alert.id === newAlert.id)) return prev;
+            return [newAlert, ...prev].slice(0, 5);
+          });
+
+          if (!newAlert.leido) {
+            setUnreadCount((count) => count + 1);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const getAlertIcon = (nivel: string) => {
     switch (nivel) {
@@ -84,7 +129,9 @@ export function NotificationsNav() {
         <Button variant="ghost" size="icon" className="relative text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
           <Bell size={20} />
           {unreadCount > 0 && (
-            <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white dark:border-slate-900 animate-pulse" />
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm dark:border-slate-900">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
           )}
         </Button>
       </PopoverTrigger>

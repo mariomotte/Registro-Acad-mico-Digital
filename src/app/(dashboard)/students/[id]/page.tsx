@@ -29,7 +29,6 @@ import {
   FileText
 } from "lucide-react"
 import Link from "next/link"
-import { IncidentAiSummary } from "@/components/incidents/IncidentAiSummary"
 import { format, isValid, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { Alumno, Incidencia } from "@/types"
@@ -348,6 +347,7 @@ export default function StudentDetailPage() {
     return dateB - dateA
   })
   const emittedAt = formatSafeDate(new Date().toISOString(), "dd 'de' MMMM 'de' yyyy, HH:mm")
+  const reportSummaryText = `Durante el ${currentPeriodLabel}, el estudiante ${student.nombres} ${student.apellidos}, del ${student.grado} ${student.seccion}, registra ${tardanzasList.length} tardanza(s), ${inasistenciasList.length} inasistencia(s) y ${incidenciasList.length} reporte(s) de conducta. Con base en estos registros, la conducta sugerida del periodo es ${conductaGeneral}. Se recomienda revisar el historial descrito, considerar las evidencias adjuntas cuando existan y mantener seguimiento coordinado con el tutor, auxiliar o apoderado segun corresponda.`
 
   const canEdit = user?.role === 'admin' || user?.role === 'director' || user?.role === 'subdirector'
   const canEditStrengths = user?.role === 'admin' || user?.role === 'director' || user?.role === 'subdirector' || user?.role === 'docente' || user?.role === 'auxiliar'
@@ -361,14 +361,13 @@ export default function StudentDetailPage() {
         </div>
         <div>
           <p className="student-print-school">Americo Garibaldi Ghersy</p>
-          <h1>Ficha de seguimiento estudiantil</h1>
+          <p className="student-print-subtitle">Institucion educativa</p>
+          <h1>Informe de seguimiento estudiantil</h1>
           <p>Documento para apoderado - {currentPeriodLabel}</p>
         </div>
-        <div className="student-print-meta">
-          <span>Fecha de emisión</span>
-          <strong>{emittedAt}</strong>
-        </div>
       </header>
+
+      <div className="student-print-place-date">Moquegua, {emittedAt}</div>
 
       <section className="student-print-section">
         <h2>Datos del alumno</h2>
@@ -385,43 +384,60 @@ export default function StudentDetailPage() {
       <section className="student-print-section">
         <h2>Resumen del periodo</h2>
         <div className="student-print-summary">
-          <div className="student-print-conduct">
-            <span>Conducta sugerida</span>
-            <strong>{conductaGeneral}</strong>
-          </div>
-          <div><span>Tardanzas reportadas</span><strong>{tardanzasList.length}</strong></div>
-          <div><span>Inasistencias reportadas</span><strong>{inasistenciasList.length}</strong></div>
-          <div><span>Reportes de conducta</span><strong>{incidenciasList.length}</strong></div>
+          <p><strong>Conducta sugerida:</strong> {conductaGeneral}</p>
+          <p><strong>Tardanzas reportadas:</strong> {tardanzasList.length}</p>
+          <p><strong>Inasistencias reportadas:</strong> {inasistenciasList.length}</p>
+          <p><strong>Reportes de conducta:</strong> {incidenciasList.length}</p>
         </div>
+      </section>
+
+      <section className="student-print-section">
+        <h2>Resumen de seguimiento</h2>
+        <p className="student-print-paragraph">{reportSummaryText}</p>
       </section>
 
       <section className="student-print-section">
         <h2>Historial de incidencias</h2>
         {allIncidentHistory.length > 0 ? (
-          <table className="student-print-table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Severidad</th>
-                <th>Registrado por</th>
-                <th>Descripción</th>
-                <th>Acción tomada</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allIncidentHistory.map((incident) => (
-                <tr key={incident.id}>
-                  <td>{formatSafeDate(incident.fecha, "dd/MM/yyyy")}</td>
-                  <td>{incident.tipo}</td>
-                  <td>{incident.severidad || "No registrada"}</td>
-                  <td>{incident.registrado_por || "No registrado"}</td>
-                  <td>{incident.descripcion || "Sin descripción"}</td>
-                  <td>{incident.accion_tomada || "Sin registrar"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="student-print-incident-list">
+            {allIncidentHistory.map((incident, index) => (
+              <article key={incident.id} className="student-print-incident-card">
+                <div className="student-print-incident-title">
+                  <strong>Incidencia {index + 1}</strong>
+                  <span>{incident.tipo}</span>
+                </div>
+                <div className="student-print-incident-meta">
+                  <div><span>Fecha</span><strong>{formatSafeDate(incident.fecha, "dd/MM/yyyy")}</strong></div>
+                  <div><span>Tipo</span><strong>{incident.tipo}</strong></div>
+                  <div><span>Severidad</span><strong>{incident.severidad || "No registrada"}</strong></div>
+                  <div><span>Registrado por</span><strong>{incident.registrado_por || "No registrado"}</strong></div>
+                </div>
+                <div className="student-print-incident-body">
+                  <span>Descripción</span>
+                  <p>{incident.descripcion || "Sin descripción"}</p>
+                </div>
+                <div className="student-print-incident-body">
+                  <span>Acción tomada</span>
+                  <p>{incident.accion_tomada || "Sin registrar"}</p>
+                </div>
+                <div className="student-print-incident-body">
+                  <span>Evidencias</span>
+                  {incident.evidence_urls && incident.evidence_urls.length > 0 ? (
+                    <div className="student-print-evidence">
+                      {incident.evidence_urls.slice(0, 3).map((url: string, idx: number) => (
+                        <img key={idx} src={url} alt={`Evidencia ${idx + 1}`} />
+                      ))}
+                      {incident.evidence_urls.length > 3 && (
+                        <span>+{incident.evidence_urls.length - 3} mas</span>
+                      )}
+                    </div>
+                  ) : (
+                    <p>Sin evidencia</p>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
         ) : (
           <p className="student-print-empty">No hay incidencias registradas para este alumno.</p>
         )}
@@ -438,15 +454,6 @@ export default function StudentDetailPage() {
         </div>
       </section>
 
-      <footer className="student-print-footer">
-        <div>
-          <span>Responsable</span>
-          <strong>{`${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Personal autorizado"}</strong>
-        </div>
-        <div className="student-print-signature">
-          <span>Firma y sello</span>
-        </div>
-      </footer>
     </section>
 
     <div className="student-screen-content space-y-8 max-w-[1440px] mx-auto pb-20">
@@ -588,9 +595,6 @@ export default function StudentDetailPage() {
         {/* Right Column: Tabs and Details */}
         <div className="lg:col-span-8 space-y-6">
           
-          {/* AI Incident Analysis Summary */}
-          <IncidentAiSummary student={student} incidents={incidents || []} />
-
           {/* Navigation Tabs */}
           <div className="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant dark:border-slate-800/80 rounded-xl card-shadow overflow-hidden">
             <div className="flex border-b border-outline-variant dark:border-slate-800 px-6 overflow-x-auto scrollbar-hide">
@@ -668,7 +672,26 @@ export default function StudentDetailPage() {
                                 {formatSafeDate(tard.fecha, "dd MMM, yyyy")}
                               </td>
                               <td className="px-4 py-4 font-body-md text-body-md dark:text-slate-300">
-                                {tard.descripcion || "Tardanza reportada."}
+                                <p>{tard.descripcion || "Tardanza reportada."}</p>
+                                {tard.evidence_urls && tard.evidence_urls.length > 0 && (
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {tard.evidence_urls.map((url: string, idx: number) => (
+                                      <a
+                                        key={idx}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                                      >
+                                        <img
+                                          src={url}
+                                          className="h-full w-full object-cover transition-transform hover:scale-110"
+                                          alt={`Evidencia de tardanza ${idx + 1}`}
+                                        />
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
                               </td>
                               <td className="px-4 py-4">
                                 <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300 text-[10px] font-bold rounded">
@@ -716,7 +739,26 @@ export default function StudentDetailPage() {
                                 {formatSafeDate(fal.fecha, "dd MMM, yyyy")}
                               </td>
                               <td className="px-4 py-4 font-body-md text-body-md dark:text-slate-300">
-                                {fal.descripcion || "Inasistencia reportada."}
+                                <p>{fal.descripcion || "Inasistencia reportada."}</p>
+                                {fal.evidence_urls && fal.evidence_urls.length > 0 && (
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {fal.evidence_urls.map((url: string, idx: number) => (
+                                      <a
+                                        key={idx}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                                      >
+                                        <img
+                                          src={url}
+                                          className="h-full w-full object-cover transition-transform hover:scale-110"
+                                          alt={`Evidencia de inasistencia ${idx + 1}`}
+                                        />
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
                               </td>
                               <td className="px-4 py-4">
                                 <span className="px-2 py-0.5 bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-[10px] font-bold rounded">
@@ -850,6 +892,25 @@ export default function StudentDetailPage() {
                               <p className="font-body-md text-body-md text-on-surface-variant dark:text-slate-300 italic leading-relaxed">
                                 "{note.descripcion}"
                               </p>
+                              {note.evidence_urls && note.evidence_urls.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2 border-t border-outline-variant pt-3 dark:border-slate-800">
+                                  {note.evidence_urls.map((url: string, idx: number) => (
+                                    <a
+                                      key={idx}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                                    >
+                                      <img
+                                        src={url}
+                                        className="h-full w-full object-cover transition-transform hover:scale-110"
+                                        alt={`Evidencia de bitacora ${idx + 1}`}
+                                      />
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}

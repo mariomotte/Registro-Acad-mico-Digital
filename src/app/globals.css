@@ -288,23 +288,21 @@ body {
 
   .student-print-header {
     display: grid;
-    grid-template-columns: 68px 1fr 150px;
-    gap: 14px;
+    grid-template-columns: 64px 1fr;
+    gap: 16px;
     align-items: center;
-    border-bottom: 2px solid #0f766e;
-    padding-bottom: 12px;
-    margin-bottom: 14px;
+    border-bottom: 2px solid #475569;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    text-align: center;
   }
 
   .student-print-logo {
     width: 58px;
     height: 58px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 5px;
   }
 
   .student-print-logo img {
@@ -315,22 +313,38 @@ body {
 
   .student-print-school {
     margin: 0 0 2px;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 800;
-    color: #0f766e;
+    color: #0f172a;
+    text-transform: uppercase;
+  }
+
+  .student-print-subtitle {
+    margin: 0;
+    color: #334155;
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
   }
 
   .student-print-header h1 {
-    margin: 0;
-    font-size: 18px;
+    margin: 4px 0 0;
+    font-size: 15px;
     line-height: 1.15;
     color: #0f172a;
+    text-transform: uppercase;
   }
 
   .student-print-header p {
     margin: 2px 0 0;
     color: #475569;
+    font-size: 10.5px;
+  }
+
+  .student-print-place-date {
+    margin: 12px 0 14px;
+    text-align: right;
+    color: #0f172a;
     font-size: 10.5px;
   }
 
@@ -369,26 +383,34 @@ body {
 
   .student-print-grid,
   .student-print-summary {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 7px;
+    display: block;
   }
 
   .student-print-grid div,
   .student-print-summary div,
   .student-print-two-columns > div {
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    padding: 7px;
-    background: #f8fafc;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    margin-bottom: 3px;
   }
 
   .student-print-grid strong,
   .student-print-summary strong {
-    display: block;
-    margin-top: 2px;
+    display: inline;
+    margin-top: 0;
     font-size: 11px;
     color: #0f172a;
+  }
+
+  .student-print-summary p,
+  .student-print-paragraph {
+    margin: 3px 0;
+    color: #334155;
+    font-size: 10.5px;
+    line-height: 1.45;
+    text-align: justify;
   }
 
   .student-print-conduct {
@@ -432,6 +454,109 @@ body {
 
   .student-print-table td {
     font-size: 9.5px;
+  }
+
+  .student-print-incident-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .student-print-incident-card {
+    break-inside: avoid;
+    border: 0;
+    border-bottom: 1px solid #cbd5e1;
+    border-radius: 0;
+    padding: 8px 0;
+    background: #ffffff;
+  }
+
+  .student-print-incident-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 7px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .student-print-incident-title strong {
+    color: #0f172a;
+    font-size: 11px;
+  }
+
+  .student-print-incident-title span {
+    color: #0f766e;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .student-print-incident-meta {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 7px;
+  }
+
+  .student-print-incident-meta div {
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .student-print-incident-meta span,
+  .student-print-incident-body span {
+    display: block;
+    color: #64748b;
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .student-print-incident-meta strong {
+    display: block;
+    margin-top: 2px;
+    color: #0f172a;
+    font-size: 9.5px;
+  }
+
+  .student-print-incident-body {
+    margin-top: 6px;
+  }
+
+  .student-print-incident-body p {
+    margin: 2px 0 0;
+    color: #334155;
+    font-size: 9.5px;
+    line-height: 1.35;
+    white-space: pre-wrap;
+  }
+
+  .student-print-evidence {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: flex-start;
+  }
+
+  .student-print-evidence img {
+    width: 46px;
+    height: 46px;
+    object-fit: cover;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+  }
+
+  .student-print-evidence span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 46px;
+    color: #475569;
+    font-size: 8.5px;
+    font-weight: 700;
   }
 
   .student-print-two-columns {

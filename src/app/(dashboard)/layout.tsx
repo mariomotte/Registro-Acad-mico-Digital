@@ -88,10 +88,15 @@ export default function DashboardLayout({
         },
         (payload) => {
           const newAlert = payload.new;
-          if (newAlert) {
+          const recipient = String(newAlert?.destinatario || '').toLowerCase();
+          const currentRole = user.role.toLowerCase();
+          const currentEmail = user.email.toLowerCase();
+          const isForCurrentUser = !recipient || recipient === currentRole || recipient === currentEmail;
+
+          if (newAlert && isForCurrentUser) {
             toast({
-              title: "Nueva alerta generada",
-              description: "Revisar alerta pendiente",
+              title: newAlert.titulo || "Nueva notificación",
+              description: newAlert.mensaje || "Revisar notificación pendiente",
               variant: "default",
             });
           }

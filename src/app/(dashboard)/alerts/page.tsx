@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Bell, AlertTriangle, Clock, Trash2, Phone, ClipboardList, Loader2, Download, Bot, ShieldAlert, Flame, CheckCircle2, ArrowRight } from "lucide-react"
+import { Bell, AlertTriangle, Clock, Trash2, Phone, ClipboardList, Loader2, Download, ShieldAlert, Flame, CheckCircle2, ArrowRight } from "lucide-react"
 import { format, parseISO, subDays } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { summarizeStudentAlerts } from "@/ai/flows/summarize-student-alerts"
 import ExcelJS from "exceljs"
+import { jsPDF } from "jspdf"
 import {
   ResponsiveContainer,
   BarChart,
@@ -472,6 +473,114 @@ export default function AlertsPage() {
     }
   }
 
+  const sanitizeFileName = (value: string) => {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .toLowerCase()
+  }
+
+  const handleDownloadSummaryPdf = async (alert: Alerta) => {
+    const summary = summaries[alert.alumnoId]
+    if (!summary) return
+
+    const now = new Date()
+    const student = students.find(s => String(s.id) === String(alert.alumnoId))
+    const doc = new jsPDF({ unit: "mm", format: "a4" })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 18
+    const contentWidth = pageWidth - margin * 2
+    let y = 20
+
+    doc.setProperties({
+      title: `Resumen para apoderado - ${alert.alumnoNombre}`,
+      subject: "Resumen de seguimiento prioritario",
+      creator: "EduControl.A.G.G",
+    })
+
+    try {
+      const logoDataUrl = await getLogoDataUrl()
+      doc.addImage(logoDataUrl, "PNG", margin, 14, 18, 18)
+    } catch (error) {
+      console.warn("No se pudo insertar el logo en el PDF", error)
+    }
+
+    doc.setTextColor(15, 23, 42)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(15)
+    doc.text("I.E. A.G.G - Seguimiento Prioritario", margin + 24, 20)
+    doc.setFontSize(11)
+    doc.setTextColor(71, 85, 105)
+    doc.text("Resumen para apoderado", margin + 24, 27)
+    doc.setDrawColor(203, 213, 225)
+    doc.line(margin, 38, pageWidth - margin, 38)
+    y = 49
+
+    const ensureSpace = (needed: number) => {
+      if (y + needed <= pageHeight - margin) return
+      doc.addPage()
+      y = margin
+    }
+
+    const addLabelValue = (label: string, value: string) => {
+      ensureSpace(14)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(9)
+      doc.setTextColor(71, 85, 105)
+      doc.text(label.toUpperCase(), margin, y)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(11)
+      doc.setTextColor(15, 23, 42)
+      doc.text(value || "No registrado", margin, y + 6)
+      y += 15
+    }
+
+    const addParagraph = (title: string, text: string) => {
+      const lines = doc.splitTextToSize(text || "No registrado", contentWidth)
+      ensureSpace(14 + lines.length * 6)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(10)
+      doc.setTextColor(30, 64, 175)
+      doc.text(title, margin, y)
+      y += 8
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(11)
+      doc.setTextColor(30, 41, 59)
+      lines.forEach((line: string) => {
+        ensureSpace(7)
+        doc.text(line, margin, y)
+        y += 6
+      })
+      y += 4
+    }
+
+    addLabelValue("Alumno", alert.alumnoNombre)
+    addLabelValue("Grado y seccion", student ? `${student.grado} - ${student.seccion}` : "N/A")
+    addLabelValue("Nivel de alerta", alert.nivel?.toUpperCase() || "N/A")
+    addLabelValue("Fecha de alerta", formatFecha(alert.fecha, "full"))
+    addParagraph("Motivo de alerta", alert.mensaje)
+    addParagraph("Resumen generado", summary)
+
+    ensureSpace(28)
+    doc.setDrawColor(226, 232, 240)
+    doc.line(margin, y + 8, margin + 70, y + 8)
+    doc.line(pageWidth - margin - 70, y + 8, pageWidth - margin, y + 8)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+    doc.setTextColor(100, 116, 139)
+    doc.text("Firma del apoderado", margin, y + 15)
+    doc.text("Responsable de seguimiento", pageWidth - margin - 70, y + 15)
+
+    doc.setFontSize(8)
+    doc.setTextColor(148, 163, 184)
+    doc.text(`Generado el ${format(now, "dd/MM/yyyy HH:mm")}`, margin, pageHeight - 10)
+
+    doc.save(`resumen_apoderado_${sanitizeFileName(alert.alumnoNombre)}_${format(now, "yyyyMMdd_HHmm")}.pdf`)
+  }
+
   const getNivelColor = (nivel: string) => {
     switch (nivel?.toLowerCase()) {
       case 'rojo': return 'border-l-red-500 bg-card/40 hover:bg-card/60';
@@ -683,14 +792,24 @@ export default function AlertsPage() {
                         </div>
                       )}
 
-                      {/* Sección Gemini AI Resumen */}
+                      {/* Sección de resumen para apoderado */}
                       <div className="mt-4 pt-4 border-t border-slate-100">
                         {summaries[alert.alumnoId] ? (
                           <div className="bg-gradient-to-br from-blue-50/80 to-indigo-50/40 dark:from-blue-950/40 dark:to-indigo-950/20 border border-blue-100/80 dark:border-blue-900/30 rounded-xl p-4 relative overflow-hidden shadow-sm">
                             <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <Bot size={18} className="text-blue-600 dark:text-blue-400 animate-bounce" />
-                              <h4 className="font-extrabold text-blue-900 dark:text-blue-200 text-xs uppercase tracking-wider">Resumen Gemini AI</h4>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <ClipboardList size={18} className="text-blue-600 dark:text-blue-400" />
+                                <h4 className="font-extrabold text-blue-900 dark:text-blue-200 text-xs uppercase tracking-wider">Resumen para apoderado</h4>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 border-blue-200 bg-white/70 text-xs font-bold text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-200"
+                                onClick={() => handleDownloadSummaryPdf(alert)}
+                              >
+                                <Download className="mr-2 h-3.5 w-3.5" /> Descargar PDF
+                              </Button>
                             </div>
                             <p className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap leading-relaxed font-semibold">{summaries[alert.alumnoId]}</p>
                           </div>
@@ -705,7 +824,7 @@ export default function AlertsPage() {
                             {isSummarizing[alert.alumnoId] ? (
                               <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Generando...</>
                             ) : (
-                              <><Bot className="mr-2 h-3.5 w-3.5" /> Generar resumen para apoderado</>
+                              <><ClipboardList className="mr-2 h-3.5 w-3.5" /> Generar resumen para apoderado</>
                             )}
                           </Button>
                         )}
