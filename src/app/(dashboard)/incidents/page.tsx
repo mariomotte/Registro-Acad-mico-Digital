@@ -34,7 +34,6 @@ import {
   Search, 
   Plus, 
   Filter, 
-  Download,
   Calendar as CalendarIcon,
   Loader2,
   RotateCcw
@@ -46,12 +45,6 @@ import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { Incidencia } from "@/types"
 import { useToast } from "@/hooks/use-toast"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 const severityColors = {
   bajo: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15",
@@ -303,27 +296,6 @@ export default function IncidentsPage() {
           <p className="text-sm font-medium text-white/75">Registro operativo de casos, evidencias y acciones tomadas.</p>
         </div>
         <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
-                <Download className="mr-2 h-4 w-4" /> Exportar
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => exportCSV('semana')}>
-                Esta semana
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportCSV('quincena')}>
-                Últimos 15 días
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportCSV('mes')}>
-                Último mes
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportCSV('todo')}>
-                Todo el historial
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <Button asChild className="bg-white text-rose-800 hover:bg-white/90">
             <Link href="/incidents/new">
               <Plus className="mr-2 h-4 w-4" /> Nuevo Reporte

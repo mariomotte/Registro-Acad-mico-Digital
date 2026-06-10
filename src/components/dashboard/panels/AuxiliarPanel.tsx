@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -35,6 +36,7 @@ import {
 
 export function AuxiliarPanel() {
   const { user } = useSupabaseAuth()
+  const router = useRouter()
   const [todayIncidents, setTodayIncidents] = useState<Incidencia[]>([])
   const [alerts, setAlerts] = useState<Alerta[]>([])
   const [priorityCases, setPriorityCases] = useState<CasoPrioritario[]>([])
@@ -275,6 +277,11 @@ export function AuxiliarPanel() {
     } catch (error) {
       console.error("Error marking all alerts as read", error);
     }
+  }
+
+  const goToStudentHistory = (alumnoId: string) => {
+    setIsUnreadModalOpen(false)
+    router.push(`/students/${alumnoId}`)
   }
 
   const generateSummary = async (alumnoId: string, alumnoNombre: string, motivoAlerta: string) => {
@@ -622,8 +629,17 @@ export function AuxiliarPanel() {
               alerts.map((alert) => (
                 <div 
                   key={alert.id} 
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => goToStudentHistory(alert.alumnoId)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      goToStudentHistory(alert.alumnoId)
+                    }
+                  }}
                   className={cn(
-                    "p-4 rounded-lg border flex flex-col justify-between gap-3 transition-all duration-200 hover:scale-[1.01]",
+                    "p-4 rounded-lg border flex flex-col justify-between gap-3 transition-all duration-200 hover:scale-[1.01] cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/70",
                     alert.nivel === 'rojo' 
                       ? "bg-rose-950/20 border-rose-900/50 text-rose-200" 
                       : alert.nivel === 'amarillo'
@@ -664,7 +680,10 @@ export function AuxiliarPanel() {
                       size="sm" 
                       variant="outline" 
                       className="h-8 px-3 text-xs bg-slate-800 border-slate-700 hover:bg-slate-700 hover:text-slate-100 flex items-center gap-1.5 font-bold"
-                      onClick={() => markAsRead(alert.id)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        markAsRead(alert.id)
+                      }}
                     >
                       <Check className="h-3.5 w-3.5" />
                       He visualizado

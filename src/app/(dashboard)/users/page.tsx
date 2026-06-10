@@ -452,14 +452,7 @@ export default function UsersManagementPage() {
         })
 
         // Reiniciar variables
-        setNewEmail("")
-        setNewPassword("")
-        setNewFirstName("")
-        setNewLastName("")
-        setNewRole("docente")
-        setNewTutorGrado("")
-        setNewTutorSeccion("")
-        setShowNewPassword(false)
+        resetCreateUserForm()
         setIsDialogOpen(false)
 
         // Recargar listado
@@ -475,6 +468,24 @@ export default function UsersManagementPage() {
     } finally {
       setIsCreatingUser(false)
     }
+  }
+
+  const resetCreateUserForm = () => {
+    setNewEmail("")
+    setNewPassword("")
+    setNewFirstName("")
+    setNewLastName("")
+    setNewRole("docente")
+    setNewTutorGrado("ninguno")
+    setNewTutorSeccion("")
+    setShowNewPassword(false)
+  }
+
+  const handleCreateDialogOpenChange = (open: boolean) => {
+    if (open) {
+      resetCreateUserForm()
+    }
+    setIsDialogOpen(open)
   }
 
   const handleOpenEditDialog = (u: Usuario) => {
@@ -697,7 +708,7 @@ export default function UsersManagementPage() {
         </div>
 
         {/* Modal de Crear Usuario */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
           <DialogTrigger asChild>
             <Button className="bg-white text-violet-800 hover:bg-white/90 flex gap-2">
               <UserPlus size={16} />
@@ -705,7 +716,7 @@ export default function UsersManagementPage() {
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
-            <form onSubmit={handleCreateUserSubmit}>
+            <form onSubmit={handleCreateUserSubmit} autoComplete="off">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <UserPlus className="text-primary" />
@@ -723,6 +734,7 @@ export default function UsersManagementPage() {
                     className="col-span-3"
                     value={newFirstName} 
                     onChange={e => setNewFirstName(e.target.value)} 
+                    autoComplete="off"
                     required 
                   />
                 </div>
@@ -733,6 +745,7 @@ export default function UsersManagementPage() {
                     className="col-span-3"
                     value={newLastName} 
                     onChange={e => setNewLastName(e.target.value)} 
+                    autoComplete="off"
                     required 
                   />
                 </div>
@@ -744,6 +757,7 @@ export default function UsersManagementPage() {
                     className="col-span-3"
                     value={newEmail} 
                     onChange={e => setNewEmail(e.target.value)} 
+                    autoComplete="new-email"
                     required 
                   />
                 </div>
@@ -756,6 +770,7 @@ export default function UsersManagementPage() {
                       className="w-full pr-10"
                       value={newPassword} 
                       onChange={e => setNewPassword(e.target.value)} 
+                      autoComplete="new-password"
                       required 
                     />
                     <button

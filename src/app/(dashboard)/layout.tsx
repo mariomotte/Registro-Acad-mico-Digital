@@ -94,10 +94,26 @@ export default function DashboardLayout({
           const isForCurrentUser = !recipient || recipient === currentRole || recipient === currentEmail;
 
           if (newAlert && isForCurrentUser) {
-            toast({
+            const studentId = newAlert.alumno_id ? String(newAlert.alumno_id) : "";
+            const notification = toast({
               title: newAlert.titulo || "Nueva notificación",
               description: newAlert.mensaje || "Revisar notificación pendiente",
               variant: "default",
+              className: studentId ? "cursor-pointer hover:bg-muted/80 focus:ring-2 focus:ring-primary/60" : undefined,
+              tabIndex: studentId ? 0 : undefined,
+              onClick: () => {
+                if (!studentId) return;
+                notification.dismiss();
+                router.push(`/students/${studentId}`);
+              },
+              onKeyDown: (event) => {
+                if (!studentId) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  notification.dismiss();
+                  router.push(`/students/${studentId}`);
+                }
+              },
             });
           }
         }
@@ -107,7 +123,7 @@ export default function DashboardLayout({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, toast]);
+  }, [user, toast, router]);
 
   if (loading) {
     return (

@@ -112,8 +112,8 @@ export default function LoginPage() {
             <h2 className="text-4xl lg:text-5xl font-black text-slate-100 leading-tight tracking-tight">
               Control de incidencias<span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"> escolares </span>
             </h2>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-              EduControl A.G.G
+            <p className="text-sm font-bold text-slate-400 tracking-widest">
+              © 2026 Eber Teves.
             </p>
           </div>
         </div>
@@ -210,7 +210,7 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center md:hidden text-xs text-slate-600 font-medium">
-            © {new Date().getFullYear()} EduControl A.G.G. Todos los derechos reservados.
+            © 2026 Eber Teves.
           </div>
         </div>
       </div>
