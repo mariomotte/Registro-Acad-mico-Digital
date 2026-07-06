@@ -18,19 +18,23 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const { user, loading } = useSupabaseAuth();
+  const userId = user?.id;
+  const userRole = user?.role;
+  const userEmail = user?.email;
+  const userEstado = user?.estado;
   const router = useRouter();
   const { toast } = useToast();
 
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !userId) {
       router.push("/login");
     }
-  }, [user, loading, router]);
+  }, [userId, loading, router]);
 
   useEffect(() => {
-    if (user?.estado === 'Inactivo') {
+    if (userEstado === 'Inactivo') {
       toast({
         title: "Acceso Bloqueado",
         description: "Tu cuenta ha sido desactivada. Contacta al administrador.",
@@ -40,13 +44,13 @@ export default function DashboardLayout({
         router.push("/login");
       });
     }
-  }, [user, router, toast]);
+  }, [userEstado, router, toast]);
 
   // Protección de rutas por rol
   useEffect(() => {
-    if (!user) return;
+    if (!userId || !userRole) return;
     
-    const role = user.role;
+    const role = userRole;
     let isRestricted = false;
     
     if (pathname.startsWith('/users')) {
@@ -71,11 +75,11 @@ export default function DashboardLayout({
       });
       router.push("/dashboard");
     }
-  }, [user, pathname, router, toast]);
+  }, [userId, userRole, pathname, router, toast]);
 
   // Suscripción Realtime para alertas del Auxiliar
   useEffect(() => {
-    if (!user || user.role !== 'auxiliar') return;
+    if (!userId || userRole !== 'auxiliar' || !userEmail) return;
 
     const channel = supabase
       .channel('realtime-alerts-auxiliar')
@@ -89,8 +93,8 @@ export default function DashboardLayout({
         (payload) => {
           const newAlert = payload.new;
           const recipient = String(newAlert?.destinatario || '').toLowerCase();
-          const currentRole = user.role.toLowerCase();
-          const currentEmail = user.email.toLowerCase();
+          const currentRole = userRole.toLowerCase();
+          const currentEmail = userEmail.toLowerCase();
           const isForCurrentUser = !recipient || recipient === currentRole || recipient === currentEmail;
 
           if (newAlert && isForCurrentUser) {
@@ -123,7 +127,7 @@ export default function DashboardLayout({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, toast, router]);
+  }, [userId, userRole, userEmail, toast, router]);
 
   if (loading) {
     return (

@@ -44,6 +44,10 @@ export default function StudentDetailPage() {
   const router = useRouter()
   const id = params?.id as string
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
+  const userRole = user?.role
+  const tutorGrado = user?.tutor_grado
+  const tutorSeccion = user?.tutor_seccion
   const { toast } = useToast()
 
   const [isMounted, setIsMounted] = useState(false)
@@ -74,7 +78,7 @@ export default function StudentDetailPage() {
     setIsMounted(true)
     
     async function loadData() {
-      if (!id || !user) return;
+      if (!id || !userId) return;
       let loadedStudent: any = null;
       
       // Load Student
@@ -105,13 +109,13 @@ export default function StudentDetailPage() {
           .select('id, tipo, registrado_por, fecha, fecha_suceso, severidad, descripcion, accion_tomada, evidence_urls')
           .eq('alumno_id', id)
 
-        const isTutorStudent = user.role === 'docente'
+        const isTutorStudent = userRole === 'docente'
           && loadedStudent
-          && loadedStudent.grado === user.tutor_grado
-          && loadedStudent.seccion === user.tutor_seccion;
+          && loadedStudent.grado === tutorGrado
+          && loadedStudent.seccion === tutorSeccion;
 
-        if (user.role === 'docente' && !isTutorStudent) {
-          incidentsQuery = incidentsQuery.eq('registrador_user_id', user.id);
+        if (userRole === 'docente' && !isTutorStudent) {
+          incidentsQuery = incidentsQuery.eq('registrador_user_id', userId);
         }
 
         const { data: iData, error: iError } = await incidentsQuery.order('created_at', { ascending: false });
@@ -134,7 +138,7 @@ export default function StudentDetailPage() {
     }
     
     return () => { mounted = false; };
-  }, [id, user, isUserLoading])
+  }, [id, userId, userRole, tutorGrado, tutorSeccion, isUserLoading])
 
   const formatSafeDate = (dateString: string | undefined, pattern: string = "PP") => {
     if (!isMounted || !dateString) return "..."

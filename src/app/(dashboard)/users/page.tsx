@@ -86,6 +86,7 @@ const MANAGEABLE_ROLE_OPTIONS: Array<{ value: UserRole; label: string }> = [
 
 export default function UsersManagementPage() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
   const { toast } = useToast()
   
   const [searchTerm, setSearchTerm] = useState("")
@@ -235,10 +236,10 @@ export default function UsersManagementPage() {
   }
 
   useEffect(() => {
-    if (!isUserLoading && user) {
+    if (!isUserLoading && userId) {
       loadUsers();
     }
-  }, [user, isUserLoading]);
+  }, [userId, isUserLoading]);
 
   const filteredUsers = users.filter((u) => {
     if (u.role === 'admin') return false;

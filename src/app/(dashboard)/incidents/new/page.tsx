@@ -53,6 +53,7 @@ export default function NewIncidentPage() {
   
   const { toast } = useToast()
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
   
   const [students, setStudents] = useState<Alumno[]>([])
   const [isLoadingStudents, setIsLoadingStudents] = useState(true)
@@ -82,7 +83,7 @@ export default function NewIncidentPage() {
   useEffect(() => {
     let mounted = true;
     async function loadStudents() {
-      if (!user) return;
+      if (!userId) return;
       try {
         const { data, error } = await supabase
           .from('alumnos')
@@ -106,7 +107,7 @@ export default function NewIncidentPage() {
     }
     
     return () => { mounted = false; };
-  }, [user, isUserLoading]);
+  }, [userId, isUserLoading]);
 
   useEffect(() => {
     if (preselectedStudentId) setSelectedStudentId(preselectedStudentId)

@@ -133,7 +133,9 @@ export default function LoginPage() {
               className="object-contain"
             />
             <div className="space-y-1">
-              <h1 className="text-2xl font-extrabold tracking-tight text-slate-100">EduControl A.G.G</h1>
+              <h1 className="text-3xl font-black leading-tight tracking-tight text-slate-100">
+                Control de incidencias<span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"> escolares</span>
+              </h1>
               <p className="text-xs text-slate-400">Plataforma de Control e Incidencias Escolares</p>
             </div>
           </div>

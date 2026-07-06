@@ -20,6 +20,9 @@ import { supabase } from "@/lib/supabase"
 
 export function NotificationsNav() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
+  const userRole = user?.role
+  const userEmail = user?.email
   const [isMounted, setIsMounted] = useState(false)
   const [alerts, setAlerts] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -32,7 +35,7 @@ export function NotificationsNav() {
   useEffect(() => {
     let mounted = true;
     async function loadAlerts() {
-      if (!user) return;
+      if (!userId) return;
       try {
         const [alertsRes, unreadRes] = await Promise.all([
           supabase
@@ -65,10 +68,10 @@ export function NotificationsNav() {
     }
     
     return () => { mounted = false; };
-  }, [user, isUserLoading]);
+  }, [userId, isUserLoading]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId || !userRole || !userEmail) return;
 
     const channel = supabase
       .channel('notifications-nav-alerts')
@@ -82,8 +85,8 @@ export function NotificationsNav() {
         (payload) => {
           const newAlert = payload.new;
           const recipient = String(newAlert?.destinatario || '').toLowerCase();
-          const currentRole = user.role.toLowerCase();
-          const currentEmail = user.email.toLowerCase();
+          const currentRole = userRole.toLowerCase();
+          const currentEmail = userEmail.toLowerCase();
           const isForCurrentUser = !recipient || recipient === currentRole || recipient === currentEmail;
 
           if (!newAlert || !isForCurrentUser) return;
@@ -103,7 +106,7 @@ export function NotificationsNav() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [userId, userRole, userEmail]);
 
   const getAlertIcon = (nivel: string) => {
     switch (nivel) {

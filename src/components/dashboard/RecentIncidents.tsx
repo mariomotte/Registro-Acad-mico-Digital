@@ -26,13 +26,15 @@ const severityColors = {
 
 export function RecentIncidents() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
+  const userRole = user?.role
   const [incidences, setIncidences] = useState<Incidencia[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     let mounted = true;
     async function fetchRecentIncidents() {
-      if (!user) return;
+      if (!userId) return;
       try {
         let query = supabase
           .from('incidencias')
@@ -40,8 +42,8 @@ export function RecentIncidents() {
           .order('created_at', { ascending: false })
           .limit(5);
 
-        if (user.role === 'docente') {
-          query = query.eq('registrador_user_id', user.id);
+        if (userRole === 'docente') {
+          query = query.eq('registrador_user_id', userId);
         }
 
         const { data, error } = await query;
@@ -72,7 +74,7 @@ export function RecentIncidents() {
     }
 
     return () => { mounted = false; };
-  }, [user, isUserLoading]);
+  }, [userId, userRole, isUserLoading]);
 
   const formatFecha = (fechaStr: string) => {
     try {

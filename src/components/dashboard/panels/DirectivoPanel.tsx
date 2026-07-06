@@ -49,6 +49,7 @@ export function DirectivoPanel({
   tooltipItem
 }: DirectivoPanelProps) {
   const { user } = useSupabaseAuth()
+  const userId = user?.id
   const [lineChartData, setLineChartData] = useState<any[]>([])
   const [pieChartData, setPieChartData] = useState<any[]>([])
   const [reincidenceSummary, setReincidenceSummary] = useState<any[]>([])
@@ -57,7 +58,7 @@ export function DirectivoPanel({
     let mounted = true;
     
     async function loadData() {
-      if (!user) return;
+      if (!userId) return;
       
       // Fetch Incidents and Alerts for chart aggregates (last 30 days)
       try {
@@ -192,7 +193,7 @@ export function DirectivoPanel({
     loadData();
     
     return () => { mounted = false; };
-  }, [user]);
+  }, [userId]);
 
   return (
     <div className="space-y-8">

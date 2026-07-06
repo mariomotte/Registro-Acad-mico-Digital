@@ -8,17 +8,18 @@ import { Loader2 } from "lucide-react"
 
 export default function Home() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
   const router = useRouter()
 
   useEffect(() => {
     if (!isUserLoading) {
-      if (user) {
+      if (userId) {
         router.replace("/dashboard")
       } else {
         router.replace("/login")
       }
     }
-  }, [user, isUserLoading, router])
+  }, [userId, isUserLoading, router])
 
   // Fallback de seguridad: Si tarda más de 2 segundos en cargar, redirigir al login
   return (

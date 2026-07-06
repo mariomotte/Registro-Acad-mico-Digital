@@ -9,6 +9,8 @@ import { supabase } from "@/lib/supabase"
 
 export function StatCards() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
+  const userRole = user?.role
   const [counts, setCounts] = useState({
     alertasActivas: 0,
     incidenciasTotales: 0,
@@ -21,17 +23,17 @@ export function StatCards() {
     let mounted = true
 
     async function fetchCounts() {
-      if (!user) return
+      if (!userId) return
 
       try {
         let incidenciasBaseQuery = supabase.from("incidencias").select("id", { count: "exact", head: true })
         let faltasQuery = supabase.from("incidencias").select("id", { count: "exact", head: true }).eq("tipo", "Inasistencia")
         let tardanzasQuery = supabase.from("incidencias").select("id", { count: "exact", head: true }).eq("tipo", "Tardanza")
 
-        if (user.role === "docente") {
-          incidenciasBaseQuery = incidenciasBaseQuery.eq("registrador_user_id", user.id)
-          faltasQuery = faltasQuery.eq("registrador_user_id", user.id)
-          tardanzasQuery = tardanzasQuery.eq("registrador_user_id", user.id)
+        if (userRole === "docente") {
+          incidenciasBaseQuery = incidenciasBaseQuery.eq("registrador_user_id", userId)
+          faltasQuery = faltasQuery.eq("registrador_user_id", userId)
+          tardanzasQuery = tardanzasQuery.eq("registrador_user_id", userId)
         }
 
         const [alertsRes, incidentsRes, faltasRes, tardanzasRes] = await Promise.all([
@@ -63,7 +65,7 @@ export function StatCards() {
     return () => {
       mounted = false
     }
-  }, [user, isUserLoading])
+  }, [userId, userRole, isUserLoading])
 
   const stats = [
     {

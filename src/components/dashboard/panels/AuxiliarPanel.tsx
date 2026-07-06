@@ -36,6 +36,7 @@ import {
 
 export function AuxiliarPanel() {
   const { user } = useSupabaseAuth()
+  const userId = user?.id
   const router = useRouter()
   const [todayIncidents, setTodayIncidents] = useState<Incidencia[]>([])
   const [alerts, setAlerts] = useState<Alerta[]>([])
@@ -68,7 +69,7 @@ export function AuxiliarPanel() {
     let mounted = true;
     
     async function loadAuxiliarData() {
-      if (!user) return;
+      if (!userId) return;
       setIsLoading(true);
       try {
         const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -194,11 +195,11 @@ export function AuxiliarPanel() {
 
     loadAuxiliarData();
     return () => { mounted = false; };
-  }, [user]);
+  }, [userId]);
 
   // Realtime subscription for alerts list update in dashboard
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     
     const channel = supabase
       .channel('dashboard-alerts-auxiliar')
@@ -256,7 +257,7 @@ export function AuxiliarPanel() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [userId]);
 
   const markAsRead = async (id: string) => {
     try {

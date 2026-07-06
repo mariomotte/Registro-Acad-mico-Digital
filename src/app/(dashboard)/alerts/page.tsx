@@ -31,6 +31,10 @@ import {
 
 export default function AlertsPage() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
+  const userRole = user?.role
+  const tutorGrado = user?.tutor_grado
+  const tutorSeccion = user?.tutor_seccion
   const [alerts, setAlerts] = useState<Alerta[]>([])
   const [incidences, setIncidences] = useState<Incidencia[]>([])
   const [students, setStudents] = useState<any[]>([])
@@ -65,7 +69,7 @@ export default function AlertsPage() {
   useEffect(() => {
     let mounted = true;
     async function loadData() {
-      if (!user) return;
+      if (!userId) return;
       try {
         const ninetyDaysAgo = format(subDays(new Date(), 90), "yyyy-MM-dd");
         
@@ -73,24 +77,24 @@ export default function AlertsPage() {
         let incidentsData: any[] = [];
         let studentsData: any[] = [];
 
-        if (user.role === 'docente') {
+        if (userRole === 'docente') {
           // 1. Fetch teacher's own incidents
           const { data: docenteIncidents, error: incError } = await supabase
             .from('incidencias')
             .select('id, alumno_id, alumno_nombre, tipo, descripcion, severidad, fecha, registrado_por, registrador_user_id')
-            .eq('registrador_user_id', user.id)
+            .eq('registrador_user_id', userId)
             .order('fecha', { ascending: false });
           
           if (incError) throw incError;
           incidentsData = docenteIncidents || [];
 
           // 2. Fetch alerts ONLY for students in the teacher's tutoría (grado and seccion)
-          if (user.tutor_grado && user.tutor_seccion) {
+          if (tutorGrado && tutorSeccion) {
             const { data: tutorStudents, error: tutorStudentsError } = await supabase
               .from('alumnos')
               .select('id')
-              .eq('grado', user.tutor_grado)
-              .eq('seccion', user.tutor_seccion);
+              .eq('grado', tutorGrado)
+              .eq('seccion', tutorSeccion);
               
             if (tutorStudentsError) throw tutorStudentsError;
             
@@ -176,7 +180,7 @@ export default function AlertsPage() {
     }
     
     return () => { mounted = false; };
-  }, [user, isUserLoading]);
+  }, [userId, userRole, tutorGrado, tutorSeccion, isUserLoading]);
 
   const formatFecha = (fechaStr: string, mode: 'time' | 'full' = 'full') => {
     try {

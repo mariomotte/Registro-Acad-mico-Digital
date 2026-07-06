@@ -54,6 +54,7 @@ const severityColors = {
 
 export default function IncidentsPage() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [incidences, setIncidences] = useState<Incidencia[]>([])
@@ -182,7 +183,7 @@ export default function IncidentsPage() {
   useEffect(() => {
     let mounted = true;
     async function loadIncidents() {
-      if (!user) return;
+      if (!userId) return;
       try {
         let query = supabase
           .from('incidencias')
@@ -222,7 +223,7 @@ export default function IncidentsPage() {
     }
     
     return () => { mounted = false; };
-  }, [user, isUserLoading]);
+  }, [userId, isUserLoading]);
 
   const getIncidentDate = (fecha: string) => {
     const parsed = parseISO(fecha)

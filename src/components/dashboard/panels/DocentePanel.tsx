@@ -47,6 +47,9 @@ export function DocentePanel({
   tooltipItem
 }: DocentePanelProps) {
   const { user } = useSupabaseAuth()
+  const userId = user?.id
+  const tutorGrado = user?.tutor_grado
+  const tutorSeccion = user?.tutor_seccion
   const [recentIncidents, setRecentIncidents] = useState<Incidencia[]>([])
   const [sectionIncidents, setSectionIncidents] = useState<Incidencia[]>([])
   const [lineChartData, setLineChartData] = useState<any[]>([])
@@ -56,7 +59,7 @@ export function DocentePanel({
     let mounted = true;
     
     async function loadDocenteData() {
-      if (!user) return;
+      if (!userId) return;
       setIsLoading(true);
       try {
         // 1. Fetch personal incidents (last 90 days)
@@ -64,7 +67,7 @@ export function DocentePanel({
         const { data: incidents, error: incError } = await supabase
           .from('incidencias')
           .select('id, alumno_id, alumno_nombre, alumno_grado, alumno_seccion, tipo, descripcion, severidad, fecha, registrado_por')
-          .eq('registrador_user_id', user.id)
+          .eq('registrador_user_id', userId)
           .gte('fecha', ninetyDaysAgo)
           .order('created_at', { ascending: false });
 
@@ -88,12 +91,12 @@ export function DocentePanel({
 
         // 2. Fetch recent reports for students in the teacher's assigned tutor section.
         let mappedSectionIncidents: Incidencia[] = [];
-        if (user.tutor_grado && user.tutor_seccion && mounted) {
+        if (tutorGrado && tutorSeccion && mounted) {
           const { data: sectionData, error: sectionError } = await supabase
             .from('incidencias')
             .select('id, alumno_id, alumno_nombre, alumno_grado, alumno_seccion, tipo, descripcion, severidad, fecha, fecha_suceso, registrado_por')
-            .eq('alumno_grado', user.tutor_grado)
-            .eq('alumno_seccion', user.tutor_seccion)
+            .eq('alumno_grado', tutorGrado)
+            .eq('alumno_seccion', tutorSeccion)
             .gte('fecha', ninetyDaysAgo)
             .order('created_at', { ascending: false })
             .limit(8);
@@ -150,7 +153,7 @@ export function DocentePanel({
 
     loadDocenteData();
     return () => { mounted = false; };
-  }, [user]);
+  }, [userId, tutorGrado, tutorSeccion]);
 
   if (isLoading) {
     return (

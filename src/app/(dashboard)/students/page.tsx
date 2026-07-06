@@ -42,6 +42,9 @@ import { getUserAvatar } from "@/lib/avatar"
 
 export default function StudentsPage() {
   const { user } = useSupabaseAuth()
+  const userRole = user?.role
+  const tutorGrado = user?.tutor_grado
+  const tutorSeccion = user?.tutor_seccion
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -71,8 +74,8 @@ export default function StudentsPage() {
     seccion: "todos",
     estado: "todos"
   })
-  const isDocente = user?.role === 'docente'
-  const hasTutorSection = Boolean(user?.tutor_grado && user?.tutor_seccion)
+  const isDocente = userRole === 'docente'
+  const hasTutorSection = Boolean(tutorGrado && tutorSeccion)
 
   const gradosDisponibles = ["1°", "2°", "3°", "4°", "5°"]
   const seccionesDisponibles = ["A", "B", "C", "D"]
@@ -122,8 +125,8 @@ export default function StudentsPage() {
 
         if (isDocente) {
           query = query
-            .eq('grado', user?.tutor_grado)
-            .eq('seccion', user?.tutor_seccion)
+            .eq('grado', tutorGrado)
+            .eq('seccion', tutorSeccion)
         } else if (filters.grado !== "todos") {
           query = query.eq('grado', filters.grado)
         }
@@ -159,7 +162,7 @@ export default function StudentsPage() {
 
     loadStudents()
     return () => { mounted = false }
-  }, [page, filters, debouncedSearch, refreshKey, isDocente, hasTutorSection, user?.tutor_grado, user?.tutor_seccion])
+  }, [page, filters, debouncedSearch, refreshKey, isDocente, hasTutorSection, tutorGrado, tutorSeccion])
 
   useEffect(() => {
     let mounted = true
@@ -177,8 +180,8 @@ export default function StudentsPage() {
 
       if (isDocente) {
         query = query
-          .eq('grado', user?.tutor_grado)
-          .eq('seccion', user?.tutor_seccion)
+          .eq('grado', tutorGrado)
+          .eq('seccion', tutorSeccion)
       }
 
       const { data, error } = await query
@@ -212,7 +215,7 @@ export default function StudentsPage() {
 
     loadSectionSummary()
     return () => { mounted = false }
-  }, [refreshKey, isDocente, hasTutorSection, user?.tutor_grado, user?.tutor_seccion])
+  }, [refreshKey, isDocente, hasTutorSection, tutorGrado, tutorSeccion])
 
   const resetFilters = () => {
     setFilters({

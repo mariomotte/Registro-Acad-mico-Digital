@@ -17,6 +17,9 @@ import { getUserAvatar } from "@/lib/avatar"
 
 export default function ProfilePage() {
   const { user, loading: isUserLoading } = useSupabaseAuth()
+  const userId = user?.id
+  const userFirstName = user?.firstName
+  const userLastName = user?.lastName
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -26,13 +29,13 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       setFormData({
-        firstName: user.firstName || "",
-        lastName: user.lastName || ""
+        firstName: userFirstName || "",
+        lastName: userLastName || ""
       })
     }
-  }, [user])
+  }, [userId, userFirstName, userLastName])
 
   const handleSave = async () => {
     if (!user) return
